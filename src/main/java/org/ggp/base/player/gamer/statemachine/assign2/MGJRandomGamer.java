@@ -1,6 +1,7 @@
 package org.ggp.base.player.gamer.statemachine.assign2;
 
 import java.util.List;
+import java.util.Random;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
@@ -11,17 +12,16 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJLegalGamer is our implementation of a legal gamer.
+ * MGJRandomGamer is our implementation of a random gamer.
  * It merely takes the first move it finds and chooses it
  * each time it is its turn to play.
  */
-public final class MGJLegalGamer extends SampleGamer
+public final class MGJRandomGamer extends SampleGamer
 {
 	/*
-	 * Team: Michael Genesereth Junior
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * the first move that it finds.
+	 * a random move from the moves it finds.
 	 */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -31,8 +31,10 @@ public final class MGJLegalGamer extends SampleGamer
 
 		// get the list of all possible moves
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-		// pick the first move found
-		Move selection = moves.get(0);
+		// pick a random move out of the list of all possible moves
+		Random rand = new Random();
+		int moveIndex = rand.nextInt(moves.size());
+		Move selection = moves.get(moveIndex);
 
 		/*
 		 * get the final time after the move is chosen

@@ -1,9 +1,11 @@
 package org.ggp.base.player.gamer.statemachine.assign2;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
+import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;

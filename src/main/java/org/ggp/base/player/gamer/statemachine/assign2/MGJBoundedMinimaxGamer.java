@@ -1,11 +1,9 @@
 package org.ggp.base.player.gamer.statemachine.assign2;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
-import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -15,18 +13,18 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJCompulsiveDeliberationGamer is our implementation of a compulsive deliberation gamer.
- * It fully searches the game tree from the current state to choose the move
- * that will maximize its score or get it to 100 (the maximum score) and
- * returns this as the move.
+ * MGJMinimaxGamer is our implementation of a minimax gamer.
+ * It fully searches the game tree from the current state to generate
+ * minimum and maximum nodes using minScore and maxScore and uses
+ * this to make an informed decision and uses bounds to operate
+ * more quickly.
  */
-public final class MGJCompulsiveDeliberationGamer extends SampleGamer
+public final class MGJBoundedMinimaxGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * the best move it can find after fully searching the
-	 * game tree.
+	 * a move generated via bounded minimax.
 	 */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -43,8 +41,8 @@ public final class MGJCompulsiveDeliberationGamer extends SampleGamer
 		// get the list of all possible moves
 		List<Move> moves = getStateMachine().findLegals(role, currentState);
 
-		// Use compulsive deliberation to determine the best possible next move
-		Move selection = bestMove(role, currentState, moves, role_index, roles.size());
+		// Use minimax to determine the best possible next move with bounds
+		Move selection = bestMove(role, currentState, moves, role_index);
 
 		/*
 		 * get the final time after the move is chosen
@@ -59,40 +57,22 @@ public final class MGJCompulsiveDeliberationGamer extends SampleGamer
 	}
 
 	/*
-	 * Fills a list of actions for each role to obtain the next state of the game
-	 * given the move being played by the active player, the index of the player in
-	 * the role list, and the total number of roles.
-	 */
-	private List<Move> fill_action_list(Move action, int role_index, int num_roles) {
-		List<Move> action_list = new ArrayList<Move>();
-		for (int i = 0; i < num_roles; i++) {
-			if (i == role_index) {
-				action_list.add(action);
-			} else {
-				action_list.add(new Move(GdlPool.getConstant("NOOP")));
-			}
-		}
-		return action_list;
-	}
-
-	/*
 	 * This function is called by stateMachineSelectMove. Given
 	 * a role, state, list of potential actions to choose from in the given
-	 * state, index of the active role in the roles array, and total number of roles,
-	 * it finds the move that returns the highest
-	 * potential score by completely exploring the game tree and returns
-	 * what this move is.
+	 * state, and index of the active role in the roles array,
+	 * it finds the moves of the opponents that returns the lowest possible score
+	 * (thereby populating the minnodes).
 	 */
-	private Move bestMove(Role role, MachineState state, List<Move> actions, int role_index, int num_roles) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Role role, MachineState state, List<Move> actions, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Move chosenMove = actions.get(0);
 		int score = 0;
 		// loop through all actions and find the best score and return this
 		for (int i = 0; i < actions.size(); i++) {
-			List<Move> next_actions = fill_action_list(actions.get(i), role_index, num_roles);
-			int result = maxScore(role, getStateMachine().findNext(next_actions, state), role_index, num_roles);
+			int result = minScore(role, actions.get(i), state, role_index);
 			if (result == 100) {
 				return actions.get(i);
-			} else if (result > score) {
+			}
+			if (result > score) {
 				score = result;
 				chosenMove = actions.get(i);
 			}
@@ -101,13 +81,35 @@ public final class MGJCompulsiveDeliberationGamer extends SampleGamer
 	}
 
 	/*
-	 * This function is called by bestMove and itself. Given
-	 * a role, a state, list of potential actions to choose from in the given
-	 * state, index of the active role in the roles array, and total number
-	 * of roles, it calculates the highest scoring move
-	 * and returns this score.
+	 * This function is called by bestMove and maxScore. Given a role,
+	 * action chosen, state, and index of the active role
+	 * in the roles array, calculates the minimum score out
+	 * of all possible joint actions conducted by the opponents.
 	 */
-	private int maxScore(Role role, MachineState state, int role_index, int num_roles) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int minScore(Role role, Move move, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		int score = 100;
+		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
+		// go through all possible combinations of actions for opponents and return worst outcome
+		for (int i = 0; i < allJointActions.size(); i++) {
+			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
+			int result = maxScore(role, updatedState, role_index);
+			if (result == 0) {
+				return 0;
+			}
+			if (result < score) {
+				score = result;
+			}
+		}
+		return score;
+	}
+
+	/*
+	 * This function is called by minScore. Given a role,
+	 * action chosen, state, and index of the active role
+	 * in the roles array, finds the highest
+	 * scoring move and returns its score.
+	 */
+	private int maxScore(Role role, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// if in a terminal state, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
@@ -116,8 +118,10 @@ public final class MGJCompulsiveDeliberationGamer extends SampleGamer
 			List<Move> actions = getStateMachine().findLegals(role, state);
 			int score = 0;
 			for (int i = 0; i < actions.size(); i++) {
-				List<Move> next_actions = fill_action_list(actions.get(i), role_index, num_roles);
-				int result = maxScore(role, getStateMachine().findNext(next_actions, state), role_index, num_roles);
+				int result = minScore(role, actions.get(i), state, role_index);
+				if (result == 100) {
+					return 100;
+				}
 				if (result > score) {
 					score = result;
 				}

@@ -1,11 +1,9 @@
 package org.ggp.base.player.gamer.statemachine.assign2;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
-import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -15,17 +13,17 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJMinimaxGamer is our implementation of a minimax gamer.
+ * MGJAlphaBetaGamer is our implementation of an alpha-beta gamer.
  * It fully searches the game tree from the current state to generate
  * minimum and maximum nodes using minScore and maxScore and uses
  * this to make an informed decision.
  */
-public final class MGJMinimaxGamer extends SampleGamer
+public final class MGJAlphaBetaGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * a move generated via minimax.
+	 * a move generated via alpha-beta minimax.
 	 */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -42,7 +40,7 @@ public final class MGJMinimaxGamer extends SampleGamer
 		// get the list of all possible moves
 		List<Move> moves = getStateMachine().findLegals(role, currentState);
 
-		// Use minimax to determine the best possible next move
+		// Use alpha-beta minimax to determine the best possible next move
 		Move selection = bestMove(role, currentState, moves, role_index);
 
 		/*
@@ -69,7 +67,7 @@ public final class MGJMinimaxGamer extends SampleGamer
 		int score = 0;
 		// loop through all actions and find the best score and return this
 		for (int i = 0; i < actions.size(); i++) {
-			int result = minScore(role, actions.get(i), state, role_index);
+			int result = minScore(role, actions.get(i), state, role_index, 0, 100);
 			if (result > score) {
 				score = result;
 				chosenMove = actions.get(i);
@@ -80,45 +78,46 @@ public final class MGJMinimaxGamer extends SampleGamer
 
 	/*
 	 * This function is called by bestMove and maxScore. Given a role,
-	 * action chosen, state, and index of the active role
-	 * in the roles array, calculates the minimum score out
-	 * of all possible joint actions conducted by the opponents.
+	 * action chosen, state, index of the active role in the
+	 * roles array, alpha, and beta, calculates
+	 * the minimum score out of all possible joint actions
+	 * conducted by the opponents.
 	 */
-	private int minScore(Role role, Move move, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		int score = 100;
+	private int minScore(Role role, Move move, MachineState state, int role_index, int alpha, int beta) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
 		// go through all possible combinations of actions for opponents and return worst outcome
 		for (int i = 0; i < allJointActions.size(); i++) {
 			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
-			int result = maxScore(role, updatedState, role_index);
-			if (result < score) {
-				score = result;
+			int result = maxScore(role, updatedState, role_index, alpha, beta);
+			beta = Math.min(beta, result);
+			if (beta <= alpha) {
+				return alpha;
 			}
 		}
-		return score;
+		return beta;
 	}
 
 	/*
 	 * This function is called by minScore. Given a role,
-	 * action chosen, state, and index of the active role
-	 * in the roles array, finds the highest
+	 * action chosen, state, index of the active role in the
+	 * roles array, alpha, and beta, finds the highest
 	 * scoring move and returns its score.
 	 */
-	private int maxScore(Role role, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int maxScore(Role role, MachineState state, int role_index, int alpha, int beta) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// if in a terminal state, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
 		} else {
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
-			int score = 0;
 			for (int i = 0; i < actions.size(); i++) {
-				int result = minScore(role, actions.get(i), state, role_index);
-				if (result > score) {
-					score = result;
+				int result = minScore(role, actions.get(i), state, role_index, alpha, beta);
+				alpha = Math.max(alpha, result);
+				if (alpha >= beta) {
+					return beta;
 				}
 			}
-			return score;
+			return alpha;
 		}
 	}
 }

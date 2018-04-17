@@ -13,7 +13,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 /*
  * Team: Michael Genesereth Junior
  * MGJRandomGamer is our implementation of a random gamer.
- * It merely takes the first move it finds and chooses it
+ * It merely takes any random move it finds and chooses it
  * each time it is its turn to play.
  */
 public final class MGJRandomGamer extends SampleGamer
@@ -30,7 +30,7 @@ public final class MGJRandomGamer extends SampleGamer
 		long start = System.currentTimeMillis();
 
 		// get the list of all possible moves
-		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
+		List<Move> moves = getStateMachine().findLegals(getRole(), getCurrentState());
 		// pick a random move out of the list of all possible moves
 		Random rand = new Random();
 		int moveIndex = rand.nextInt(moves.size());

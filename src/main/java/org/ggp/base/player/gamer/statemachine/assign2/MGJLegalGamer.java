@@ -30,7 +30,7 @@ public final class MGJLegalGamer extends SampleGamer
 		long start = System.currentTimeMillis();
 
 		// get the list of all possible moves
-		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
+		List<Move> moves = getStateMachine().findLegals(getRole(), getCurrentState());
 		// pick the first move found
 		Move selection = moves.get(0);
 

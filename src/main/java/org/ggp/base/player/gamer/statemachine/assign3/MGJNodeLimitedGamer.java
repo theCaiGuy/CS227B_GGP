@@ -13,8 +13,8 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJMinimaxGamer is our implementation of a minimax gamer.
- * It fully searches the game tree from the current state to generate
+ * MGJNodeLimitedGamer is our implementation of a node-limited minimax gamer.
+ * It partially searches the game tree from the current state to generate
  * minimum and maximum nodes using minScore and maxScore and uses
  * this to make an informed decision.
  */
@@ -23,10 +23,10 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * a move generated via minimax.
+	 * a move generated via node-limited minimax.
 	 */
 
-	private int limit = 9;
+	private int limit = 9; // node limit
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException

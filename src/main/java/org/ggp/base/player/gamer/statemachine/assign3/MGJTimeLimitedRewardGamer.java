@@ -13,17 +13,18 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJTimeLimitedGamer is our implementation of a time limited gamer.
+ * MGJTimeLimitedRewardGamer is our implementation of a time limited
+ * gamer that uses a reward heuristic for incomplete searches.
  * It partially searches the game tree from the current state to generate
  * minimum and maximum nodes using minScore and maxScore and uses
  * this to make an informed decision.
  */
-public final class MGJTimeLimitedGamer extends SampleGamer
+public final class MGJTimeLimitedRewardGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * a move generated via time limited minimax search.
+	 * a move generated via time-limited minimax.
 	 */
 
 	private long limit = 3250;
@@ -67,13 +68,16 @@ public final class MGJTimeLimitedGamer extends SampleGamer
 	 */
 	private Move bestMove(Role role, MachineState state, List<Move> actions, int role_index, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Move chosenMove = actions.get(0);
-		int score = 0;
+		double score = 0;
+		boolean chosenTerminal = false;
 		// loop through all actions and find the best score and return this
 		for (int i = 0; i < actions.size(); i++) {
-			int result = minScore(role, actions.get(i), state, role_index, start, timeout);
-			if (result > score) {
+			Boolean isTerminal = Boolean.FALSE;
+			double result = minScore(role, actions.get(i), state, role_index, start, timeout, isTerminal);
+			if (result > score || (result == score && chosenTerminal && !isTerminal.booleanValue())) {
 				score = result;
 				chosenMove = actions.get(i);
+				chosenTerminal = isTerminal.booleanValue();
 			}
 		}
 		return chosenMove;
@@ -85,17 +89,20 @@ public final class MGJTimeLimitedGamer extends SampleGamer
 	 * in the roles array, calculates the minimum score out
 	 * of all possible joint actions conducted by the opponents.
 	 */
-	private int minScore(Role role, Move move, MachineState state, int role_index, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		int score = 100;
+	private double minScore(Role role, Move move, MachineState state, int role_index, long start, long timeout, Boolean terminal) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		double score = 100;
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
+		boolean chosenTerminal = false;
 		// go through all possible combinations of actions for opponents and return worst outcome
 		for (int i = 0; i < allJointActions.size(); i++) {
 			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
-			int result = maxScore(role, updatedState, role_index, start, timeout);
+			double result = maxScore(role, updatedState, role_index, start, timeout, terminal);
 			if (result < score) {
 				score = result;
+				chosenTerminal = terminal.booleanValue();
 			}
 		}
+		terminal = Boolean.valueOf(chosenTerminal);
 		return score;
 	}
 
@@ -105,21 +112,26 @@ public final class MGJTimeLimitedGamer extends SampleGamer
 	 * in the roles array, finds the highest
 	 * scoring move and returns its score.
 	 */
-	private int maxScore(Role role, MachineState state, int role_index, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private double maxScore(Role role, MachineState state, int role_index, long start, long timeout, Boolean terminal) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// if in a terminal state or exceeds the time limit, return, otherwise recursively find all terminal results
-		if (getStateMachine().findTerminalp(state)) {
+		// note: the heuristic is integrated in this or statement because the helper function would be identical
+		if (getStateMachine().findTerminalp(state) || timeout - System.currentTimeMillis() < limit) {
+			terminal = getStateMachine().findTerminalp(state) ? Boolean.TRUE : terminal;
 			return getStateMachine().findReward(role, state);
-		} else if (timeout - System.currentTimeMillis() < limit) return 0;
+		}
 		else {
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
-			int score = 0;
+			double score = 0;
+			boolean chosenTerminal = false;
 			for (int i = 0; i < actions.size(); i++) {
-				int result = minScore(role, actions.get(i), state, role_index, start, timeout);
+				double result = minScore(role, actions.get(i), state, role_index, start, timeout, terminal);
 				if (result > score) {
 					score = result;
+					chosenTerminal = terminal.booleanValue();
 				}
 			}
+			terminal = Boolean.valueOf(chosenTerminal);
 			return score;
 		}
 	}

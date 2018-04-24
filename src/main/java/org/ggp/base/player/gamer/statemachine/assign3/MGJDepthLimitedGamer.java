@@ -13,20 +13,20 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJMinimaxGamer is our implementation of a minimax gamer.
- * It fully searches the game tree from the current state to generate
+ * MGJDepthLimitedGamer is our implementation of a depth-limited gamer.
+ * It partially searches the game tree from the current state to generate
  * minimum and maximum nodes using minScore and maxScore and uses
- * this to make an informed decision.
+ * this to make an informed decision, bounded by a set depth.
  */
 public final class MGJDepthLimitedGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * a move generated via minimax.
+	 * a move generated via depth-limited minimax.
 	 */
 
-	private int limit = 6;
+	private int limit = 6; // level limit
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -109,7 +109,7 @@ public final class MGJDepthLimitedGamer extends SampleGamer
 	 * scoring move and returns its score.
 	 */
 	private int maxScore(Role role, MachineState state, int role_index, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		// if in a terminal state, return, otherwise recursively find all terminal results
+		// if in a terminal state or exceeds the level limit, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
 		} else if (level >= limit) return 0;

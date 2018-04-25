@@ -34,7 +34,6 @@ public final class MGJDepthLimitedGamer extends SampleGamer
 		// start time
 		long start = System.currentTimeMillis();
 
-		// depth limit
 		int level = 0;
 
 		// vars for role and state

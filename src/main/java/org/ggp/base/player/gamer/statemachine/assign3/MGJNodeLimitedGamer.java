@@ -26,7 +26,8 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	 * a move generated via node-limited minimax.
 	 */
 
-	private int limit = 9; // node limit
+	private int limit = 50000; // node limit
+	private int nodes_explored;
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -35,7 +36,7 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 		long start = System.currentTimeMillis();
 
 		// intial node count
-		int node = 0;
+//		int node = 0;
 
 		// vars for role and state
 		Role role = getRole();
@@ -43,11 +44,13 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 		int role_index = roles.indexOf(role);
 		MachineState currentState = getCurrentState();
 
+		nodes_explored = 0;
+
 		// get the list of all possible moves
 		List<Move> moves = getStateMachine().findLegals(role, currentState);
 
 		// Use minimax to determine the best possible next move
-		Move selection = bestMove(role, currentState, moves, role_index, node);
+		Move selection = bestMove(role, currentState, moves, role_index);
 
 		/*
 		 * get the final time after the move is chosen
@@ -68,12 +71,12 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	 * it finds the moves of the opponents that returns the lowest possible score
 	 * (thereby populating the minnodes).
 	 */
-	private Move bestMove(Role role, MachineState state, List<Move> actions, int role_index, int node) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Role role, MachineState state, List<Move> actions, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Move chosenMove = actions.get(0);
 		int score = 0;
 		// loop through all actions and find the best score and return this
 		for (int i = 0; i < actions.size(); i++) {
-			int result = minScore(role, actions.get(i), state, role_index, node);
+			int result = minScore(role, actions.get(i), state, role_index);
 			if (result > score) {
 				score = result;
 				chosenMove = actions.get(i);
@@ -88,14 +91,14 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	 * in the roles array, calculates the minimum score out
 	 * of all possible joint actions conducted by the opponents.
 	 */
-	private int minScore(Role role, Move move, MachineState state, int role_index, int nodes) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int minScore(Role role, Move move, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int score = 100;
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
 		// go through all possible combinations of actions for opponents and return worst outcome
 		for (int i = 0; i < allJointActions.size(); i++) {
 			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
-			nodes++;
-			int result = maxScore(role, updatedState, role_index, nodes);
+			nodes_explored++;
+			int result = maxScore(role, updatedState, role_index);
 			if (result < score) {
 				score = result;
 			}
@@ -109,17 +112,18 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	 * in the roles array, finds the highest
 	 * scoring move and returns its score.
 	 */
-	private int maxScore(Role role, MachineState state, int role_index, int nodes) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int maxScore(Role role, MachineState state, int role_index) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// if in a terminal state, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
-		} else if (nodes >= limit) return 0;
+		} else if (nodes_explored >= limit) return 0;
 		else {
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
 			int score = 0;
 			for (int i = 0; i < actions.size(); i++) {
-				int result = minScore(role, actions.get(i), state, role_index, nodes);
+				nodes_explored++;
+				int result = minScore(role, actions.get(i), state, role_index);
 				if (result > score) {
 					score = result;
 				}

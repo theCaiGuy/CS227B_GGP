@@ -133,6 +133,6 @@ public final class MGJTimeLimitedMobilityGamer extends SampleGamer
 	private double mobility(Role role, MachineState state) throws MoveDefinitionException {
 		List<Move> actions = getStateMachine().findLegals(role, state);
 		List<Move> feasibles = getStateMachine().findActions(role);
-		return (actions.size() / (feasibles.size() * 100.0));
+		return ((float)actions.size() / (float)(feasibles.size() * 100.0));
 	}
 }

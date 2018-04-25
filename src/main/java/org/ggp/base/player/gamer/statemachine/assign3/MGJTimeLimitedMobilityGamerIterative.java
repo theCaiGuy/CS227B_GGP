@@ -19,7 +19,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * minimum and maximum nodes using minScore and maxScore and uses
  * this to make an informed decision.
  */
-public final class MGJTimeLimitedMobilityGamer extends SampleGamer
+public final class MGJTimeLimitedMobilityGamerIterative extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -69,13 +69,18 @@ public final class MGJTimeLimitedMobilityGamer extends SampleGamer
 		Move chosenMove = actions.get(0);
 		double score = 0;
 		// loop through all actions and find the best score and return this
-		for (int i = 0; i < actions.size(); i++) {
-			double result = minScore(role, actions.get(i), state, start, timeout);
-			if (result > score) {
-				score = result;
-				chosenMove = actions.get(i);
+		int max_level = 1;
+		while (timeout - System.currentTimeMillis() >= limit) {
+			for (Move action : actions) {
+				double result = minScore(role, action, state, 0, max_level, timeout);
+				if (result > score) {
+					score = result;
+					chosenMove = action;
+				}
 			}
+			max_level += 1;
 		}
+
 		return chosenMove;
 	}
 
@@ -85,13 +90,13 @@ public final class MGJTimeLimitedMobilityGamer extends SampleGamer
 	 * in the roles array, calculates the minimum score out
 	 * of all possible joint actions conducted by the opponents.
 	 */
-	private double minScore(Role role, Move move, MachineState state, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private double minScore(Role role, Move move, MachineState state, int level, int max_level, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		double score = 100;
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
 		// go through all possible combinations of actions for opponents and return worst outcome
-		for (int i = 0; i < allJointActions.size(); i++) {
-			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
-			double result = maxScore(role, updatedState, start, timeout);
+		for (List<Move> joint_actions : allJointActions) {
+			MachineState updatedState = getStateMachine().findNext(joint_actions, state);
+			double result = maxScore(role, updatedState, level + 1, max_level, timeout);
 			if (result < score) {
 				score = result;
 			}
@@ -105,17 +110,17 @@ public final class MGJTimeLimitedMobilityGamer extends SampleGamer
 	 * in the roles array, finds the highest
 	 * scoring move and returns its score.
 	 */
-	private double maxScore(Role role, MachineState state, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		// if in a terminal state or exceeds the time limit, return, otherwise recursively find all terminal results
+	private double maxScore(Role role, MachineState state, int level, int max_level, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		// if in a terminal state or exceeds the level limit, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
-		} else if (timeout - System.currentTimeMillis() < limit) return mobility(role, state);
+		} else if (level >= max_level || timeout - System.currentTimeMillis() < limit) return mobility(role, state);
 		else {
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
 			double score = 0;
-			for (int i = 0; i < actions.size(); i++) {
-				double result = minScore(role, actions.get(i), state, start, timeout);
+			for (Move action : actions) {
+				double result = minScore(role, action, state, level, max_level, timeout);
 				if (result > score) {
 					score = result;
 				}
@@ -132,6 +137,6 @@ public final class MGJTimeLimitedMobilityGamer extends SampleGamer
 	private double mobility(Role role, MachineState state) throws MoveDefinitionException {
 		List<Move> actions = getStateMachine().findLegals(role, state);
 		List<Move> feasibles = getStateMachine().findActions(role);
-		return ((float)actions.size() / (float)(feasibles.size() * 100.0));
+		return ((double)actions.size() / (double)(feasibles.size() * 100.0));
 	}
 }

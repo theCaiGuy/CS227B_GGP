@@ -26,7 +26,7 @@ public final class MGJNodeLimitedGamer extends SampleGamer
 	 * a move generated via node-limited minimax.
 	 */
 
-	private int limit = 50000; // node limit
+	private int limit = 10000; // node limit
 	private int nodes_explored;
 
 	@Override

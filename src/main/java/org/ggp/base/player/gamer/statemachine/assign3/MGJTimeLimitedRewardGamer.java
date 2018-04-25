@@ -72,11 +72,11 @@ public final class MGJTimeLimitedRewardGamer extends SampleGamer
 		int max_level = 1;
 		// loop through all actions and find the best score and return this
 		while (timeout - System.currentTimeMillis() >= limit) {
-			for (int i = 0; i < actions.size(); i++) {
-				double result = minScore(role, actions.get(i), state, role_index, start, timeout, 0, max_level);
+			for (Move action : actions) {
+				double result = minScore(role, action, state, role_index, start, timeout, 0, max_level);
 				if (result > score) {
 					score = result;
-					chosenMove = actions.get(i);
+					chosenMove = action;
 				}
 			}
 			max_level += 1;
@@ -94,8 +94,8 @@ public final class MGJTimeLimitedRewardGamer extends SampleGamer
 		double score = 100;
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
 		// go through all possible combinations of actions for opponents and return worst outcome
-		for (int i = 0; i < allJointActions.size(); i++) {
-			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
+		for (List<Move> joint_actions : allJointActions) {
+			MachineState updatedState = getStateMachine().findNext(joint_actions, state);
 			double result = maxScore(role, updatedState, role_index, start, timeout, curr_level, max_level);
 			if (result < score) {
 				score = result;
@@ -120,8 +120,8 @@ public final class MGJTimeLimitedRewardGamer extends SampleGamer
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
 			double score = 0;
-			for (int i = 0; i < actions.size(); i++) {
-				double result = minScore(role, actions.get(i), state, role_index, start, timeout, curr_level + 1, max_level);
+			for (Move action : actions) {
+				double result = minScore(role, action, state, role_index, start, timeout, curr_level + 1, max_level);
 				if (result > score) {
 					score = result;
 				}

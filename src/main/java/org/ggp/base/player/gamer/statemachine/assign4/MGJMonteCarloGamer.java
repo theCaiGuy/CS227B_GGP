@@ -29,7 +29,7 @@ public final class MGJMonteCarloGamer extends SampleGamer
 
 	private int limit = 3; // level limit
 	private int count = 4; // number of depth charges
-	private long time_lim = 6000; // time limit
+	private long time_lim = 4000; // time limit
 	private long absolute_lim = 2500; // absolute time limit when you cancel monte carlo depth charges
 
 	@Override
@@ -83,6 +83,18 @@ public final class MGJMonteCarloGamer extends SampleGamer
 				score = result;
 				chosenMove = action;
 			}
+		}
+		// If time is still left, keep searching the tree until time expires
+		while (timeout - System.currentTimeMillis() >= time_lim && score != 100) {
+			limit += 1;
+			for (Move action : actions) {
+				int result = minScore(role, action, state, level, timeout);
+				if (result > score) {
+					score = result;
+					chosenMove = action;
+				}
+			}
+
 		}
 		return chosenMove;
 	}

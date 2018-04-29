@@ -29,6 +29,8 @@ public final class MGJMonteCarloGamer extends SampleGamer
 
 	private int limit = 3; // level limit
 	private int count = 4; // number of depth charges
+	private long time_lim = 4000; // time limit
+	private long absolute_lim = 2500; // absolute time limit when you cancel monte carlo depth charges
 
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
@@ -45,8 +47,11 @@ public final class MGJMonteCarloGamer extends SampleGamer
 		// get the list of all possible moves
 		List<Move> moves = getStateMachine().findLegals(role, currentState);
 
+		// if noop or only one possible move return immediately
+		if (moves.size() == 1) return moves.get(0);
+
 		// Use minimax to determine the best possible next move
-		Move selection = bestMove(role, currentState, moves, level);
+		Move selection = bestMove(role, currentState, moves, level, start, timeout);
 
 		/*
 		 * get the final time after the move is chosen
@@ -67,16 +72,29 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * it finds the moves of the opponents that returns the lowest possible score
 	 * (thereby populating the minnodes).
 	 */
-	private Move bestMove(Role role, MachineState state, List<Move> actions, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Role role, MachineState state, List<Move> actions, int level, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Move chosenMove = actions.get(0);
 		int score = 0;
 		// loop through all actions and find the best score and return this
-		for (int i = 0; i < actions.size(); i++) {
-			int result = minScore(role, actions.get(i), state, level);
+		for (Move action : actions) {
+			int result = minScore(role, action, state, level, timeout);
+//			if (result == 100) return action;
 			if (result > score) {
 				score = result;
-				chosenMove = actions.get(i);
+				chosenMove = action;
 			}
+		}
+		// If time is still left, keep searching the tree until time expires
+		while (timeout - System.currentTimeMillis() >= time_lim && score != 100) {
+			limit += 1;
+			for (Move action : actions) {
+				int result = minScore(role, action, state, level, timeout);
+				if (result > score) {
+					score = result;
+					chosenMove = action;
+				}
+			}
+
 		}
 		return chosenMove;
 	}
@@ -87,13 +105,14 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * in the roles array, calculates the minimum score out
 	 * of all possible joint actions conducted by the opponents.
 	 */
-	private int minScore(Role role, Move move, MachineState state, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int minScore(Role role, Move move, MachineState state, int level, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int score = 100;
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, move);
 		// go through all possible combinations of actions for opponents and return worst outcome
-		for (int i = 0; i < allJointActions.size(); i++) {
-			MachineState updatedState = getStateMachine().findNext(allJointActions.get(i), state);
-			int result = maxScore(role, updatedState, level + 1);
+		for (List<Move> joint_actions : allJointActions) {
+			MachineState updatedState = getStateMachine().findNext(joint_actions, state);
+			int result = maxScore(role, updatedState, level + 1, timeout);
+			if (result == 0) return result;
 			if (result < score) {
 				score = result;
 			}
@@ -107,17 +126,17 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * in the roles array, finds the highest
 	 * scoring move and returns its score.
 	 */
-	private int maxScore(Role role, MachineState state, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int maxScore(Role role, MachineState state, int level, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		// if in a terminal state or exceeds the level limit, return, otherwise recursively find all terminal results
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
-		} else if (level >= limit) return montecarlo(role, state);
+		} else if (level >= limit || timeout - System.currentTimeMillis() < time_lim) return montecarlo(role, state, timeout);
 		else {
 			// find actions in this case and return the highest score found amongst them
 			List<Move> actions = getStateMachine().findLegals(role, state);
 			int score = 0;
-			for (int i = 0; i < actions.size(); i++) {
-				int result = minScore(role, actions.get(i), state, level);
+			for (Move action : actions) {
+				int result = minScore(role, action, state, level, timeout);
 				if (result == 100) return 100;
 				if (result > score) {
 					score = result;
@@ -133,10 +152,10 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * found from each depth charge and returns the average
 	 * of those scores
 	 */
-	private int montecarlo(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int montecarlo(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int total = 0;
 		for (int i = 0; i < count; i++) {
-			total = total + depthcharge(role, state);
+			total = total + depthcharge(role, state, timeout);
 		}
 		return total/count;
 	}
@@ -147,14 +166,15 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * move until a terminal state is reached, then returns
 	 * the reward received at said terminal state
 	 */
-	private int depthcharge(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int depthcharge(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		if (getStateMachine().findTerminalp(state)) {
 			return getStateMachine().findReward(role, state);
 		}
+		if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 		List<Move> actions = getStateMachine().findLegals(role,  state);
 		Random rand = new Random();
 		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, actions.get(rand.nextInt(actions.size())));
 		MachineState updated_state = getStateMachine().findNext(allJointActions.get(rand.nextInt(allJointActions.size())), state);
-		return depthcharge(role, updated_state);
+		return depthcharge(role, updated_state, timeout);
 	}
 }

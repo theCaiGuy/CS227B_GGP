@@ -78,7 +78,6 @@ public final class MGJMonteCarloGamer extends SampleGamer
 		// loop through all actions and find the best score and return this
 		for (Move action : actions) {
 			int result = minScore(role, action, state, level, timeout);
-//			if (result == 100) return action;
 			if (result > score) {
 				score = result;
 				chosenMove = action;

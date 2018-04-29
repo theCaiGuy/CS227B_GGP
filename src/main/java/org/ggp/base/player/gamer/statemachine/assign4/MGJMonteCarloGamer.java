@@ -8,6 +8,7 @@ import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
+import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
@@ -27,9 +28,9 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * a move generated via depth-limited minimax.
 	 */
 
-	private int limit = 3; // level limit
-	private int count = 4; // number of depth charges
-	private long time_lim = 4000; // time limit
+	private int limit = 4; // level limit
+	private int count = 6; // number of depth charges
+	private long time_lim = 3000; // time limit
 	private long absolute_lim = 2500; // absolute time limit when you cancel monte carlo depth charges
 
 	@Override
@@ -154,7 +155,7 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	private int montecarlo(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int total = 0;
 		for (int i = 0; i < count; i++) {
-			total = total + depthcharge(role, state, timeout);
+			total = total + depthcharge(role, state, timeout, getStateMachine());
 		}
 		return total/count;
 	}
@@ -165,15 +166,14 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * move until a terminal state is reached, then returns
 	 * the reward received at said terminal state
 	 */
-	private int depthcharge(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		if (getStateMachine().findTerminalp(state)) {
-			return getStateMachine().findReward(role, state);
-		}
+	private int depthcharge(Role role, MachineState state, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
-		List<Move> actions = getStateMachine().findLegals(role,  state);
-		Random rand = new Random();
-		List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(state, role, actions.get(rand.nextInt(actions.size())));
-		MachineState updated_state = getStateMachine().findNext(allJointActions.get(rand.nextInt(allJointActions.size())), state);
-		return depthcharge(role, updated_state, timeout);
+		Random random = new Random();
+		MachineState current = state;
+		while (!m.findTerminalp(current)) {
+			List<List<Move>> moves = m.getLegalJointMoves(current);
+			current = m.getNextState(current, moves.get(random.nextInt(moves.size())));
+		}
+		return m.findReward(role, current);
 	}
 }

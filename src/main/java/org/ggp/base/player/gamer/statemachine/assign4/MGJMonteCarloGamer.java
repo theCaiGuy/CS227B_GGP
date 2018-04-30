@@ -25,7 +25,7 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	/*
 	 * This function is called whenever the gamer is queried
 	 * for a move at the beginning of each round. It returns
-	 * a move generated via depth-limited minimax.
+	 * a move generated via Monte Carlo search.
 	 */
 
 	private int limit = 4; // level limit

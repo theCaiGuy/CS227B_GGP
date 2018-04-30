@@ -16,12 +16,12 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /*
  * Team: Michael Genesereth Junior
- * MGJMonteCarloGamer is our implementation of a Monte Carlo gamer.
+ * MGJMonteCarloTreeSearchGamer is our implementation of a Monte Carlo Tree gamer.
  * It partially explores the game tree to a set depth, then uses depth charges
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
+public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -37,8 +37,6 @@ public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
 
 	// Class to represent Node in search tree
 	public class Node {
-		//ONCE YOU INTIALIZE THERE THREE THINGS, SHOULD NOT CHANGE
-		// Move that a particular node represents, this could be janky since i dont know how the move system works
 		List<Move> move = null;
 		// Parent node of the current node
 		public Node parent = null;
@@ -71,6 +69,8 @@ public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
 
 		// vars for role and state
 		Role role = getRole();
+		List<Role> roles = getStateMachine().findRoles();
+		int roleIdx = roles.indexOf(role);
 		MachineState currentState = getCurrentState();
 
 		// get the list of all possible moves
@@ -81,7 +81,7 @@ public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
 
 		List<List<Move>> jointMoves = getStateMachine().getLegalJointMoves(currentState);
 
-		// Intializes root children
+		// Initializes root children
 		ArrayList<Node> parentChildren = new ArrayList<Node>();
 		for (List<Move> action : jointMoves) {
 			Node newAction = new Node(root, action, getStateMachine().getNextState(getCurrentState(), action), false);
@@ -90,7 +90,7 @@ public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
 		root.children = parentChildren;
 
 		// Use Monte Carlo Tree Search to determine the best possible next move
-		Move selection = bestMove(role, start, timeout);
+		Move selection = bestMove(role, start, timeout, roleIdx);
 
 		/*
 		 * get the final time after the move is chosen
@@ -107,61 +107,70 @@ public final class MGJMonteCarloTreeSearchGamer extends SampleGamer
 
 	/* while still have time repeatedly update and search the tree
 	 */
-	private Move bestMove(Role role, long start, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
-			treeSearch(role, root, timeout);
+			Node selNode = select(root);
+			expand(selNode, role);
+			int score = montecarlo(role, selNode.currentState, timeout);
+			backpropagate(selNode, score);
 		}
 
-		// Not quite sure how the moves work, so this bit of code may be janky what I want to do is get the move that the child wants to play and
-		// store it in the child so that we can extract it again after we are done
-		Move bestMove = root.children.get(0).move.get(0);
-		for (Move move : root.children.get(0).move) {
-			if (move != noop) bestMove = move;
-		}
+		// Parse through moves, find one with highest amount of utility, select it
+		Move bestMove = root.children.get(0).move.get(roleIdx);
 		double bestUtility =  root.children.get(0).utility;
 		for (Node child : root.children) {
 			if (child.utility >= bestUtility) {
 				bestUtility = child.utility;
-				for (Move move : child.move) {
-					if (move != noop) bestMove = move;
-				};
+				bestMove = child.move.get(roleIdx);
 			}
 		}
 		return bestMove;
 	}
 
-	private void treeSearch(Role role, Node node, double timeout) {
-		while (true) {
-			Node currentNode = node;
-			if (currentNode.visits == 0 && !currentNode.isRoot) {
-				simulate(currentNode, timeout);
-				break;
-			} else {
-				double score = -1.0;
-				Node bestNode = null;
-				for (Node child : currentNode.children) {
-					if (child.visits == 0) {
-						bestNode = child;
-						break;
-					}
-					if (selectChild(child) >= score) bestNode = child;
+	private Node select(Node node) {
+		if (node.visits == 0) {
+			return node;
+		} else {
+			for (int i = 0; i < node.children.size(); i++) {
+				if (node.children.get(i).visits == 0) {
+					return node.children.get(i);
 				}
-				simulate(bestNode, timeout);
-				break;
+			}
+			int score = 0;
+			Node result = node;
+			for (int i = 0; i < node.children.size(); i++) {
+				int newscore = selectfn(node.children.get(i));
+				if (newscore > score) {
+					score = newscore;
+					result = node.children.get(i);
+				}
+			}
+			return select(result);
+		}
+	}
+
+	private int selectfn(Node node) {
+		return (int) (node.utility / node.visits + Math.sqrt(2 * Math.log(node.parent.visits) / node.visits));
+	}
+
+	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+		List<Move> actions = getStateMachine().findLegals(role, node.currentState);
+		for (int i = 0; i < actions.size(); i++) {
+			List<List<Move>> jointActions = getStateMachine().getLegalJointMoves(node.currentState, role, actions.get(i));
+			for (int j = 0; j < jointActions.size(); j++) {
+				MachineState newState = getStateMachine().findNext(jointActions.get(j), node.currentState);
+				Node newnode = new Node(node, jointActions.get(i), newState, false);
+				node.children.add(newnode);
 			}
 		}
 	}
 
-	void simulate(Role role, Node node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		double score = montecarlo(role, node.currentState, timeout);
-
-
-		// Backpropagation
-	}
-
-	// Function sets utility of node with a function
-	double selectChild(Node node) {
-		return node.utility/node.visits+Math.sqrt(2*Math.log(node.parent.visits)/node.visits);
+	private void backpropagate(Node node, int score) {
+		node.visits++;
+		node.utility = node.utility + score;
+		if (node.parent != null) {
+			backpropagate(node.parent, score);
+		}
 	}
 
 	/*

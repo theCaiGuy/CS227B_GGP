@@ -29,8 +29,8 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 */
 
 	private int limit = 4; // level limit
-	private int count = 6; // number of depth charges
-	private long time_lim = 3000; // time limit
+	private int count = 4; // number of depth charges
+	private long time_lim = 4000; // time limit
 	private long absolute_lim = 2500; // absolute time limit when you cancel monte carlo depth charges
 
 	@Override
@@ -167,12 +167,12 @@ public final class MGJMonteCarloGamer extends SampleGamer
 	 * the reward received at said terminal state
 	 */
 	private int depthcharge(Role role, MachineState state, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 		Random random = new Random();
 		MachineState current = state;
 		while (!m.findTerminalp(current)) {
 			List<List<Move>> moves = m.getLegalJointMoves(current);
 			current = m.getNextState(current, moves.get(random.nextInt(moves.size())));
+			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 		}
 		return m.findReward(role, current);
 	}

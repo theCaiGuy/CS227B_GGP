@@ -33,6 +33,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	private long time_lim = 3000; // time limit
 	private long absolute_lim = 2500;
 	private int count = 6; //num depth charges
+	ArrayList<Node> children = new ArrayList<Node>();
 	private Node root = new Node(null, null, null, true);
 
 	// Class to represent Node in search tree
@@ -80,7 +81,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		if (moves.size() == 1) return moves.get(0);
 
 		List<List<Move>> jointMoves = getStateMachine().getLegalJointMoves(currentState);
-
+        root.children = children;
 		// Initializes root children
 		ArrayList<Node> parentChildren = new ArrayList<Node>();
 		for (List<Move> action : jointMoves) {
@@ -128,7 +129,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	}
 
 	private Node select(Node node) {
-		if (node.visits == 0) {
+		if (node.visits == 0 && !node.isRoot) {
 			return node;
 		} else {
 			for (int i = 0; i < node.children.size(); i++) {
@@ -154,6 +155,9 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	}
 
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+		if (getStateMachine().findTerminalp(node.currentState)) {
+			return;
+		}
 		List<Move> actions = getStateMachine().findLegals(role, node.currentState);
 		for (int i = 0; i < actions.size(); i++) {
 			List<List<Move>> jointActions = getStateMachine().getLegalJointMoves(node.currentState, role, actions.get(i));

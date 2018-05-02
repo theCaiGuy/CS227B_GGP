@@ -30,9 +30,9 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	 */
 
 
-	private long time_lim = 4000; // time limit
+	private long time_lim = 3000; // time limit
 	private long absolute_lim = 2500;
-	private int count = 4; //num depth charges
+	private int count = 6; //num depth charges
 
 	// Class to represent Node in search tree
 	public class Node {

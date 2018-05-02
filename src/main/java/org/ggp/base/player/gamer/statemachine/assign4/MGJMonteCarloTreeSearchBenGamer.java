@@ -152,7 +152,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		for (Move action : actions) {
 			List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
-				MachineState newState = getStateMachine().findNext(jointActions, node.currentState);
+				MachineState newState = getStateMachine().getNextState(node.currentState, jointActions);
 				Node newnode = new Node(node, jointActions, newState, false);
 				node.children.add(newnode);
 			}

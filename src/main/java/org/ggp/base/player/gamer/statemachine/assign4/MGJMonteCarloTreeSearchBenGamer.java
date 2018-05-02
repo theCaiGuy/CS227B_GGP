@@ -53,12 +53,11 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		// Number of visits for
 		public double visits = 0.0;
 
-		public Node(Node parent, List<Move> move, MachineState currentState, boolean isRoot, ArrayList<Node> children) {
+		public Node(Node parent, List<Move> move, MachineState currentState, boolean isRoot) {
 			this.parent = parent;
 			this.move = move;
 			this.currentState = currentState;
 			this.isRoot = isRoot;
-			this.children = children;
 		}
 	}
 
@@ -130,7 +129,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 			int score = 0;
 			Node result = node;
 			for (int i = 0; i < node.children.size(); i++) {
-				System.out.println("HELLO");
+//				System.out.println("HELLO");
 				int newscore = selectfn(node.children.get(i));
 				if (newscore > score) {
 					score = newscore;
@@ -146,15 +145,15 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	}
 
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
-		if (getStateMachine().findTerminalp(node.currentState)) {
-			return;
-		}
+//		if (getStateMachine().findTerminalp(node.currentState)) {
+//			return;
+//		}
 		List<Move> actions = getStateMachine().findLegals(role, node.currentState);
-		for (int i = 0; i < actions.size(); i++) {
-			List<List<Move>> jointActions = getStateMachine().getLegalJointMoves(node.currentState, role, actions.get(i));
-			for (int j = 0; j < jointActions.size(); j++) {
-				MachineState newState = getStateMachine().findNext(jointActions.get(j), node.currentState);
-				Node newnode = new Node(node, jointActions.get(j), newState, false);
+		for (Move action : actions) {
+			List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(node.currentState, role, action);
+			for (List<Move> jointActions : allJointActions) {
+				MachineState newState = getStateMachine().findNext(jointActions, node.currentState);
+				Node newnode = new Node(node, jointActions, newState, false);
 				node.children.add(newnode);
 			}
 		}
@@ -189,12 +188,12 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	 * the reward received at said terminal state
 	 */
 	private int depthcharge(Role role, MachineState state, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		if (timeout - System.currentTimeMillis() < absolute_lim) return 50;
 		Random random = new Random();
 		MachineState current = state;
 		while (!m.findTerminalp(current)) {
 			List<List<Move>> moves = m.getLegalJointMoves(current);
 			current = m.getNextState(current, moves.get(random.nextInt(moves.size())));
+			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 		}
 		return m.findReward(role, current);
 	}

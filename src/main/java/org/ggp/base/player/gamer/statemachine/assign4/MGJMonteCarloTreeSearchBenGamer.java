@@ -100,8 +100,13 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
 			Node selNode = select(root);
-			expand(selNode, role);
-			int score = montecarlo(role, selNode.currentState, timeout);
+			int score = 0;
+			if (getStateMachine().findTerminalp(selNode.currentState)) {
+				score = getStateMachine().findReward(role, selNode.currentState);
+			} else {
+				expand(selNode, role);
+				score = montecarlo(role, selNode, timeout);
+			}
 			backpropagate(selNode, score);
 		}
 
@@ -118,6 +123,9 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	}
 
 	private Node select(Node node) {
+		if (getStateMachine().findTerminalp(node.currentState)) {
+			return node;
+		}
 		if (node.visits == 0) {
 			return node;
 		} else {
@@ -149,7 +157,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		for (Move action : actions) {
 			List<List<Move>> allJointActions = getStateMachine().getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
-				MachineState newState = getStateMachine().getNextState(node.currentState, jointActions);
+				MachineState newState = getStateMachine().findNext(jointActions, node.currentState);
 				Node newnode = new Node(node, jointActions, newState, false);
 				node.children.add(newnode);
 			}
@@ -164,35 +172,55 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		}
 	}
 
-	/*
-	 * This function manages the depth charges extending
-	 * from a particular node. It adds up the resulting scores
-	 * found from each depth charge and returns the average
-	 * of those scores
-	 */
-	private int montecarlo(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+
+	private int montecarlo(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int total = 0;
 		for (int i = 0; i < count; i++) {
-			total = total + depthcharge(role, state, timeout, getStateMachine());
+			total = total + depthcharge(role, curr_node, timeout, getStateMachine());
 		}
-		return total/count;
+		return total / count;
 	}
 
-	/*
-	 * This function performs a depth charge on the given
-	 * game tree. At each state, it randomly chooses one
-	 * move until a terminal state is reached, then returns
-	 * the reward received at said terminal state
-	 */
-	private int depthcharge(Role role, MachineState state, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int depthcharge(Role role, Node curr_node, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
-		MachineState current = state;
-		while (!m.findTerminalp(current)) {
-			List<List<Move>> moves = m.getLegalJointMoves(current);
-			current = m.getNextState(current, moves.get(random.nextInt(moves.size())));
+		MachineState curr_state = curr_node.currentState;
+		while (!m.findTerminalp(curr_state)) {
 			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
+			List<List<Move>> moves = m.getLegalJointMoves(curr_state);
+			curr_state = m.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
 		}
-		return m.findReward(role, current);
+		return m.findReward(role,  curr_state);
 	}
+
+//	/*
+//	 * This function manages the depth charges extending
+//	 * from a particular node. It adds up the resulting scores
+//	 * found from each depth charge and returns the average
+//	 * of those scores
+//	 */
+//	private int montecarlo(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+//		int total = 0;
+//		for (int i = 0; i < count; i++) {
+//			total = total + depthcharge(role, state, timeout, getStateMachine());
+//		}
+//		return total/count;
+//	}
+//
+//	/*
+//	 * This function performs a depth charge on the given
+//	 * game tree. At each state, it randomly chooses one
+//	 * move until a terminal state is reached, then returns
+//	 * the reward received at said terminal state
+//	 */
+//	private int depthcharge(Role role, MachineState state, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+//		Random random = new Random();
+//		MachineState current = state;
+//		while (!m.findTerminalp(current)) {
+//			List<List<Move>> moves = m.getLegalJointMoves(current);
+//			current = m.getNextState(current, moves.get(random.nextInt(moves.size())));
+//			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
+//		}
+//		return m.findReward(role, current);
+//	}
 
 }

@@ -129,6 +129,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 			int score = 0;
 			Node result = node;
 			for (int i = 0; i < node.children.size(); i++) {
+				System.out.println("HELLO");
 				int newscore = selectfn(node.children.get(i));
 				if (newscore > score) {
 					score = newscore;

@@ -30,10 +30,9 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	 */
 
 
-	private long time_lim = 3000; // time limit
+	private long time_lim = 4000; // time limit
 	private long absolute_lim = 2500;
-	private int count = 6; //num depth charges
-	private Node root = new Node(null, null, null, true);
+	private int count = 4; //num depth charges
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -78,9 +77,10 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 
 		// if noop or only one possible move return immediately
 		if (moves.size() == 1) return moves.get(0);
-        root.currentState = getCurrentState();
+
+		Node root = new Node(null, null, getCurrentState(), true);
 		// Use Monte Carlo Tree Search to determine the best possible next move
-		Move selection = bestMove(role, start, timeout, roleIdx);
+		Move selection = bestMove(root, role, start, timeout, roleIdx);
 
 		/*
 		 * get the final time after the move is chosen
@@ -97,7 +97,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 
 	/* while still have time repeatedly update and search the tree
 	 */
-	private Move bestMove(Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
 			Node selNode = select(root);
 			expand(selNode, role);
@@ -121,19 +121,16 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		if (node.visits == 0) {
 			return node;
 		} else {
-			for (int i = 0; i < node.children.size(); i++) {
-				if (node.children.get(i).visits == 0) {
-					return node.children.get(i);
-				}
-			}
 			int score = 0;
 			Node result = node;
-			for (int i = 0; i < node.children.size(); i++) {
-//				System.out.println("HELLO");
-				int newscore = selectfn(node.children.get(i));
-				if (newscore > score) {
-					score = newscore;
-					result = node.children.get(i);
+			for (Node child : node.children) {
+				if (child.visits == 0) {
+					return child;
+				}
+				int child_score = selectfn(child);
+				if (child_score > score) {
+					score = child_score;
+					result = child;
 				}
 			}
 			return select(result);

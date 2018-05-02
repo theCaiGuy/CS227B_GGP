@@ -21,7 +21,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
+public final class MGJMonteCarloTreeSearch extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -30,9 +30,9 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 	 */
 
 
-	private long time_lim = 3000; // time limit
+	private long time_lim = 4000; // time limit
 	private long absolute_lim = 2500;
-	private int count = 6; //num depth charges
+	private int count = 4; //num depth charges
 	private Node root = new Node(null, null, null, true);
 
 	// Class to represent Node in search tree
@@ -53,12 +53,11 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		// Number of visits for
 		public double visits = 0.0;
 
-		public Node(Node parent, List<Move> move, MachineState currentState, boolean isRoot, ArrayList<Node> children) {
+		public Node(Node parent, List<Move> move, MachineState currentState, boolean isRoot) {
 			this.parent = parent;
 			this.move = move;
 			this.currentState = currentState;
 			this.isRoot = isRoot;
-			this.children = children;
 		}
 	}
 
@@ -81,7 +80,6 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		if (moves.size() == 1) return moves.get(0);
 
 		List<List<Move>> jointMoves = getStateMachine().getLegalJointMoves(currentState);
-        root.children = children;
 		// Initializes root children
 		ArrayList<Node> parentChildren = new ArrayList<Node>();
 		for (List<Move> action : jointMoves) {
@@ -128,54 +126,54 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		return bestMove;
 	}
 
-	private Node select(Node node) {
-		if (node.visits == 0 && !node.isRoot) {
-			return node;
-		} else {
-			for (int i = 0; i < node.children.size(); i++) {
-				if (node.children.get(i).visits == 0) {
-					return node.children.get(i);
-				}
-			}
-			int score = 0;
-			Node result = node;
-			for (int i = 0; i < node.children.size(); i++) {
-				int newscore = selectfn(node.children.get(i));
-				if (newscore > score) {
-					score = newscore;
-					result = node.children.get(i);
-				}
-			}
-			return select(result);
-		}
-	}
-
-	private int selectfn(Node node) {
-		return (int) (node.utility / node.visits + Math.sqrt(2 * Math.log(node.parent.visits) / node.visits));
-	}
-
-	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
-		if (getStateMachine().findTerminalp(node.currentState)) {
-			return;
-		}
-		List<Move> actions = getStateMachine().findLegals(role, node.currentState);
-		for (int i = 0; i < actions.size(); i++) {
-			List<List<Move>> jointActions = getStateMachine().getLegalJointMoves(node.currentState, role, actions.get(i));
-			for (int j = 0; j < jointActions.size(); j++) {
-				MachineState newState = getStateMachine().findNext(jointActions.get(j), node.currentState);
-				Node newnode = new Node(node, jointActions.get(i), newState, false);
-				node.children.add(newnode);
-			}
-		}
-	}
-
-	private void backpropagate(Node node, int score) {
-		node.visits++;
-		node.utility = node.utility + score;
-		if (node.parent != null) {
-			backpropagate(node.parent, score);
-		}
-	}
+//	private Node select(Node node) {
+//		if (node.visits == 0 && !node.isRoot) {
+//			return node;
+//		} else {
+//			for (int i = 0; i < node.children.size(); i++) {
+//				if (node.children.get(i).visits == 0) {
+//					return node.children.get(i);
+//				}
+//			}
+//			int score = 0;
+//			Node result = node;
+//			for (int i = 0; i < node.children.size(); i++) {
+//				int newscore = selectfn(node.children.get(i));
+//				if (newscore > score) {
+//					score = newscore;
+//					result = node.children.get(i);
+//				}
+//			}
+//			return select(result);
+//		}
+//	}
+//
+//	private int selectfn(Node node) {
+//		return (int) (node.utility / node.visits + Math.sqrt(2 * Math.log(node.parent.visits) / node.visits));
+//	}
+//
+//	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+//		if (getStateMachine().findTerminalp(node.currentState)) {
+//			return;
+//		}
+//		List<Move> actions = getStateMachine().findLegals(role, node.currentState);
+//		for (int i = 0; i < actions.size(); i++) {
+//			List<List<Move>> jointActions = getStateMachine().getLegalJointMoves(node.currentState, role, actions.get(i));
+//			for (int j = 0; j < jointActions.size(); j++) {
+//				MachineState newState = getStateMachine().findNext(jointActions.get(j), node.currentState);
+//				Node newnode = new Node(node, jointActions.get(i), newState, false);
+//				node.children.add(newnode);
+//			}
+//		}
+//	}
+//
+//	private void backpropagate(Node node, int score) {
+//		node.visits++;
+//		node.utility = node.utility + score;
+//		if (node.parent != null) {
+//			backpropagate(node.parent, score);
+//		}
+//	}
 
 	/*
 	 * This function manages the depth charges extending

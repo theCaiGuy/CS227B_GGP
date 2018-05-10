@@ -32,7 +32,8 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 
 	private long time_lim = 3000; // time limit
 	private long absolute_lim = 2500;
-	private int count = 4; //num depth charges
+	private int count = 5; //num depth charges
+	private int num_depth_charges = 0;
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -79,9 +80,13 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		// if noop or only one possible move return immediately
 		if (moves.size() == 1) return moves.get(0);
 
+		num_depth_charges = 0;
+
 		Node root = new Node(null, null, getCurrentState(), true);
 		// Use Monte Carlo Tree Search to determine the best possible next move
 		Move selection = bestMove(root, role, start, timeout, roleIdx, machine);
+
+		System.out.println("Number of depth charges: " + num_depth_charges);
 
 		/*
 		 * get the final time after the move is chosen
@@ -196,6 +201,7 @@ public final class MGJMonteCarloTreeSearchBenGamer extends SampleGamer
 		int total = 0;
 		for (int i = 0; i < count; i++) {
 			total = total + depthcharge(role, curr_node, timeout, machine);
+			num_depth_charges += 1;
 		}
 		return total / count;
 	}

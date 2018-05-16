@@ -37,6 +37,7 @@ public final class MGJPropnetBuilderGamer extends SampleGamer
 	private long absolute_lim = 2500;
 	private int count = 5; //num depth charges
 	private int num_depth_charges = 0;
+	private double est_utility = 0;
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -97,11 +98,13 @@ public final class MGJPropnetBuilderGamer extends SampleGamer
 		if (moves.size() == 1) return moves.get(0);
 
 		num_depth_charges = 0;
+		est_utility = 0;
 
 		Node root = new Node(null, null, getCurrentState(), true);
 		// Use Monte Carlo Tree Search to determine the best possible next move
 		Move selection = bestMove(root, role, start, timeout, roleIdx, machine);
 
+		System.out.println("Estimated utility: " + est_utility);
 		System.out.println("Number of depth charges: " + num_depth_charges);
 
 		/*
@@ -133,20 +136,22 @@ public final class MGJPropnetBuilderGamer extends SampleGamer
 		}
 
 		// Parse through moves, find one with highest amount of utility, select it
-		Move bestMove = root.children.get(0).move.get(roleIdx);
+		Node bestMove = root.children.get(0);
 		double bestUtility =  root.children.get(0).utility;
 		for (Node child : root.children) {
-//			if (machine.findTerminalp(child.currentState)) {
-//				if (machine.findReward(role, child.currentState) == 100) {
-//					return child.move.get(roleIdx);
-//				}
-//			}
+			if (machine.findTerminalp(child.currentState)) {
+				if (machine.findReward(role, child.currentState) == 100) {
+					est_utility = child.utility;
+					return child.move.get(roleIdx);
+				}
+			}
 			if (child.utility >= bestUtility) {
 				bestUtility = child.utility;
-				bestMove = child.move.get(roleIdx);
+				bestMove = child;
 			}
 		}
-		return bestMove;
+		est_utility = bestMove.utility;
+		return bestMove.move.get(roleIdx);
 	}
 
 	private Node select(Node node, StateMachine machine) {

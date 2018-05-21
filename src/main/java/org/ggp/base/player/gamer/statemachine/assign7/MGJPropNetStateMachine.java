@@ -13,6 +13,9 @@ import org.ggp.base.util.gdl.grammar.GdlRelation;
 import org.ggp.base.util.gdl.grammar.GdlSentence;
 import org.ggp.base.util.propnet.architecture.Component;
 import org.ggp.base.util.propnet.architecture.PropNet;
+import org.ggp.base.util.propnet.architecture.components.And;
+import org.ggp.base.util.propnet.architecture.components.Not;
+import org.ggp.base.util.propnet.architecture.components.Or;
 import org.ggp.base.util.propnet.architecture.components.Proposition;
 import org.ggp.base.util.propnet.factory.OptimizingPropNetFactory;
 import org.ggp.base.util.statemachine.MachineState;
@@ -44,6 +47,16 @@ public class MGJPropNetStateMachine extends StateMachine {
         try {
             propNet = OptimizingPropNetFactory.create(description);
             roles = propNet.getRoles();
+            /*
+            Set<Component> components = propNet.getComponents();
+            for (Component c : components) {
+            	if (c instanceof And) {
+            		System.out.println(c);
+            	} else {
+            		System.out.println("Prop");
+            	}
+            }
+            */
             ordering = getOrdering();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -56,8 +69,123 @@ public class MGJPropNetStateMachine extends StateMachine {
      */
     @Override
     public boolean isTerminal(MachineState state) {
-        // TODO: Compute whether the MachineState is terminal.
+        markBases(state);
+        Proposition terminalProp = propNet.getTerminalProposition();
         return false;
+    }
+
+    private void markBases(MachineState state) {
+    	Set<GdlSentence> stateBases = state.getContents();
+    	Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
+    	for (GdlSentence base : baseProps.keySet()) {
+    		if (stateBases.contains(base)) {
+    			baseProps.get(base).setValue(true);
+    		} else {
+    			baseProps.get(base).setValue(false);
+    		}
+    	}
+    }
+
+    private void markActions(List<Move> moves) {
+    	List<GdlSentence> does = toDoes(moves);
+    	Map<GdlSentence, Proposition> inputProps = propNet.getInputPropositions();
+    	for (GdlSentence input : inputProps.keySet()) {
+    		if (does.contains(input)) {
+    			inputProps.get(input).setValue(true);
+    		} else {
+    			inputProps.get(input).setValue(false);
+    		}
+    	}
+    }
+
+    private void clearPropNet() {
+    	Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
+    	for (GdlSentence base : baseProps.keySet()) {
+    		baseProps.get(base).setValue(false);
+    	}
+    }
+
+    private boolean propmarkp(Component c) {
+    	// check proposition versus transition
+    	if (c instanceof Proposition) {
+    		Proposition p = (Proposition) c;
+    		// input/base props return mark, otherwise return view prop source
+    		if (propNet.getBasePropositions().containsKey(p.getName()) ||
+    			propNet.getInputPropositions().containsKey(p.getName())) {
+    			return p.getValue();
+    		} else {
+    			return propmarkp(p.getSingleInput());
+    		}
+    	} else {
+    		if (c instanceof And) {
+    			return propmarkconjunction(c);
+    		} else if (c instanceof Not) {
+    			return propmarknegation(c);
+    		} else if (c instanceof Or) {
+    			return propmarkconjunction(c);
+    		}
+    	}
+    	return false;
+    }
+
+    private boolean propmarknegation(Component c) {
+    	return !propmarkp(c.getSingleInput());
+    }
+
+    private boolean propmarkconjunction(Component c) {
+    	Set<Component> sources = c.getInputs();
+    	for (Component src : sources) {
+    		if (!propmarkp(src)) {
+    			return false;
+    		}
+    	}
+    	return true;
+    }
+
+    private boolean propmarkdisjunction(Component c) {
+    	Set<Component> sources = c.getInputs();
+    	for (Component src : sources) {
+    		if (propmarkp(src)) {
+    			return true;
+    		}
+    	}
+    	return false;
+    }
+
+    private List<Proposition> proplegals(Role role, MachineState state) {
+    	markBases(state);
+    	Set<Proposition> legals = propNet.getLegalPropositions().get(role);
+    	List<Proposition> actions = new ArrayList<Proposition>();
+    	for (Proposition l : legals) {
+    		if (propmarkp(l)) {
+    			actions.add(l);
+    		}
+    	}
+    	return actions;
+    }
+
+    private List<Proposition> propnext(List<Move> move, MachineState state) {
+    	markActions(move);
+    	markBases(state);
+    	Map<GdlSentence, Proposition> bases = propNet.getBasePropositions();
+    	List<Proposition> nexts = new ArrayList<Proposition>();
+    	for (int i = 0; i < bases.size(); i++) {
+    		if (propmarkp(bases.get(i).getSingleInput().getSingleInput())) {
+    			nexts.add(bases.get(i));
+    		}
+    	}
+    	return nexts;
+    }
+
+    private GdlSentence propreward(Role role, MachineState state) {
+    	markBases(state);
+    	Set<Proposition> rewards = propNet.getGoalPropositions().get(role);
+    	for (Proposition r : rewards) {
+    		if (propmarkp(r)) {
+    			return r.getName();
+    		}
+    	}
+    	return null;
     }
 
     /**

@@ -7,8 +7,6 @@ import java.util.Random;
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.gdl.grammar.Gdl;
-import org.ggp.base.util.propnet.architecture.PropNet;
-import org.ggp.base.util.propnet.factory.OptimizingPropNetFactory;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -69,13 +67,8 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
 	{
 		List<Gdl> rules = getMatch().getGame().getRules();
-		try {
-			PropNet propNet = OptimizingPropNetFactory.create(rules);
-			System.out.println("Propnet size is " + propNet.getSize());
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		MGJPropNetStateMachine propNetMachine = new MGJPropNetStateMachine();
+		propNetMachine.initialize(rules);
 	}
 
 	@Override

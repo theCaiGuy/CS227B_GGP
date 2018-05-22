@@ -71,6 +71,7 @@ public class MGJPropNetStateMachine extends StateMachine {
     public boolean isTerminal(MachineState state) {
         markBases(state);
         return propmarkp(propNet.getTerminalProposition());
+//        return propNet.getTerminalProposition().getValue();
     }
 
     private void markBases(MachineState state) {

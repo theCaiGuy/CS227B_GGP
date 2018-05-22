@@ -36,6 +36,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	private int count = 5; //num depth charges
 	private int num_depth_charges = 0;
 	private double est_utility = 0;
+	private MGJPropNetStateMachine propNetMachine;
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -67,7 +68,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
 	{
 		List<Gdl> rules = getMatch().getGame().getRules();
-		MGJPropNetStateMachine propNetMachine = new MGJPropNetStateMachine();
+		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
 	}
 
@@ -119,7 +120,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		while (timeout - System.currentTimeMillis() >= time_lim) {
 			Node selNode = select(root, machine);
 			int score = 0;
-			if (machine.findTerminalp(selNode.currentState)) {
+			if (propNetMachine.isTerminal(selNode.currentState)) {
 				score = machine.findReward(role, selNode.currentState);
 			} else {
 				expand(selNode, role, machine);
@@ -132,7 +133,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		Node bestMove = root.children.get(0);
 		double bestUtility =  root.children.get(0).utility;
 		for (Node child : root.children) {
-			if (machine.findTerminalp(child.currentState)) {
+			if (propNetMachine.isTerminal(child.currentState)) {
 				if (machine.findReward(role, child.currentState) == 100) {
 					est_utility = child.utility;
 					return child.move.get(roleIdx);
@@ -148,7 +149,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	}
 
 	private Node select(Node node, StateMachine machine) {
-		if (machine.findTerminalp(node.currentState)) {
+		if (propNetMachine.isTerminal(node.currentState)) {
 			return node;
 		}
 		if (node.visits == 0) {
@@ -226,7 +227,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	private int depthcharge(Role role, Node curr_node, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
 		MachineState curr_state = curr_node.currentState;
-		while (!m.findTerminalp(curr_state)) {
+		while (!propNetMachine.isTerminal(curr_state)) {
 			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 			List<List<Move>> moves = m.getLegalJointMoves(curr_state);
 			curr_state = m.getNextState(curr_state, moves.get(random.nextInt(moves.size())));

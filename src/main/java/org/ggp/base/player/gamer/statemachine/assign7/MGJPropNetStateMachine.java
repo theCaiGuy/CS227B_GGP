@@ -70,9 +70,8 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public boolean isTerminal(MachineState state) {
         markBases(state);
-        Proposition terminalProp = propNet.getTerminalProposition();
-        return propmarkp(terminalProp);
-//        return false;
+        return propmarkp(propNet.getTerminalProposition());
+//        return propNet.getTerminalProposition().getValue();
     }
 
     private void markBases(MachineState state) {

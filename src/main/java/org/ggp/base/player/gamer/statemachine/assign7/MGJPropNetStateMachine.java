@@ -122,7 +122,7 @@ public class MGJPropNetStateMachine extends StateMachine {
 	    		} else if (c instanceof Not) {
 	    			return propmarknegation(c);
 	    		} else if (c instanceof Or) {
-	    			return propmarkconjunction(c);
+	    			return propmarkdisjunction(c);
 	    		}
 	    	}
 	    	return false;

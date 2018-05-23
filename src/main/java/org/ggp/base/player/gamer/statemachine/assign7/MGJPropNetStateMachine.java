@@ -169,20 +169,20 @@ public class MGJPropNetStateMachine extends StateMachine {
 	    	markBases(state);
 	    	Map<GdlSentence, Proposition> bases = propNet.getBasePropositions();
 	    	List<Proposition> nexts = new ArrayList<Proposition>();
-	    	for (int i = 0; i < bases.size(); i++) {
-	    		if (propmarkp(bases.get(i).getSingleInput().getSingleInput())) {
-	    			nexts.add(bases.get(i));
+	    	for (GdlSentence base : bases.keySet()) {
+	    		if (propmarkp(bases.get(base).getSingleInput().getSingleInput())) {
+	    			nexts.add(bases.get(base));
 	    		}
 	    	}
 	    	return nexts;
     }
 
-    private GdlSentence propreward(Role role, MachineState state) {
+    private Proposition propreward(Role role, MachineState state) {
 	    	markBases(state);
 	    	Set<Proposition> rewards = propNet.getGoalPropositions().get(role);
 	    	for (Proposition r : rewards) {
 	    		if (propmarkp(r)) {
-	    			return r.getName();
+	    			return r;
 	    		}
 	    	}
 	    	return null;
@@ -198,8 +198,7 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
-        // TODO: Compute the goal for role in state.
-        return -1;
+        return getGoalValue(propreward(role, state));
     }
 
     /**
@@ -229,8 +228,12 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
-        // TODO: Compute legal moves.
-        return null;
+    		List<Move> legal_moves = new ArrayList<Move>();
+    		List<Proposition> legal_props = proplegals(role, state);
+    		for (Proposition prop : legal_props) {
+    			legal_moves.add(getMoveFromProposition(prop));
+    		}
+        return legal_moves;
     }
 
     /**
@@ -239,8 +242,18 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public MachineState getNextState(MachineState state, List<Move> moves)
             throws TransitionDefinitionException {
-        // TODO: Compute the next state.
-        return null;
+        List<Proposition> next_props = propnext(moves, state);
+        Set<GdlSentence> contents = new HashSet<GdlSentence>();
+        for (Proposition p : next_props)
+        {
+            p.setValue(p.getSingleInput().getValue());
+            if (p.getValue())
+            {
+                contents.add(p.getName());
+            }
+
+        }
+        return new MachineState(contents);
     }
 
     /**

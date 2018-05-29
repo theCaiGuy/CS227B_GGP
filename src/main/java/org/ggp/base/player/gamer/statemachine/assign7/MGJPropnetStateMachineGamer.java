@@ -10,7 +10,6 @@ import org.ggp.base.util.gdl.grammar.Gdl;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
-import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
@@ -79,14 +78,13 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		long start = System.currentTimeMillis();
 
 		// vars for role and state
-		StateMachine machine = getStateMachine();
 		Role role = getRole();
-		List<Role> roles = machine.findRoles();
+		List<Role> roles = propNetMachine.findRoles();
 		int roleIdx = roles.indexOf(role);
 		MachineState currentState = getCurrentState();
 
 		// get the list of all possible moves
-		List<Move> moves = machine.findLegals(role, currentState);
+		List<Move> moves = propNetMachine.getLegalMoves(currentState, role);
 
 		// if noop or only one possible move return immediately
 		if (moves.size() == 1) return moves.get(0);
@@ -96,7 +94,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 
 		Node root = new Node(null, null, getCurrentState(), true);
 		// Use Monte Carlo Tree Search to determine the best possible next move
-		Move selection = bestMove(root, role, start, timeout, roleIdx, machine);
+		Move selection = bestMove(root, role, start, timeout, roleIdx);
 
 		System.out.println("Estimated utility: " + est_utility);
 		System.out.println("Number of depth charges: " + num_depth_charges);
@@ -116,15 +114,15 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 
 	/* while still have time repeatedly update and search the tree
 	 */
-	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx, StateMachine machine) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
-			Node selNode = select(root, machine);
+			Node selNode = select(root);
 			int score = 0;
 			if (propNetMachine.isTerminal(selNode.currentState)) {
-				score = machine.findReward(role, selNode.currentState);
+				score = propNetMachine.getGoal(selNode.currentState, role);
 			} else {
-				expand(selNode, role, machine);
-				score = montecarlo(role, selNode, timeout, machine);
+				expand(selNode, role);
+				score = montecarlo(role, selNode, timeout);
 			}
 			backpropagate(selNode, score);
 		}
@@ -134,7 +132,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		double bestUtility =  root.children.get(0).utility;
 		for (Node child : root.children) {
 			if (propNetMachine.isTerminal(child.currentState)) {
-				if (machine.findReward(role, child.currentState) == 100) {
+				if (propNetMachine.getGoal(child.currentState, role) == 100) {
 					est_utility = child.utility;
 					return child.move.get(roleIdx);
 				}
@@ -148,7 +146,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		return bestMove.move.get(roleIdx);
 	}
 
-	private Node select(Node node, StateMachine machine) {
+	private Node select(Node node) {
 		if (propNetMachine.isTerminal(node.currentState)) {
 			return node;
 		}
@@ -167,7 +165,7 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 					result = child;
 				}
 			}
-			return select(result, machine);
+			return select(result);
 		}
 	}
 
@@ -175,12 +173,12 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		return (int) (node.utility / node.visits + Math.sqrt(2 * Math.log(node.parent.visits) / node.visits));
 	}
 
-	private void expand(Node node, Role role, StateMachine machine) throws MoveDefinitionException, TransitionDefinitionException {
-		List<Move> actions = machine.findLegals(role, node.currentState);
+	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+		List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
 		for (Move action : actions) {
-			List<List<Move>> allJointActions = machine.getLegalJointMoves(node.currentState, role, action);
+			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
-				MachineState newState = machine.findNext(jointActions, node.currentState);
+				MachineState newState = propNetMachine.findNext(jointActions, node.currentState);
 				Node newnode = new Node(node, jointActions, newState, false);
 				node.children.add(newnode);
 			}
@@ -212,10 +210,10 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	/*
 	 * Manages depth charges for a monte carlo search
 	 */
-	private int montecarlo(Role role, Node curr_node, long timeout, StateMachine machine) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int montecarlo(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int total = 0;
 		for (int i = 0; i < count; i++) {
-			total = total + depthcharge(role, curr_node, timeout, machine);
+			total = total + depthcharge(role, curr_node, timeout);
 			num_depth_charges += 1;
 		}
 		return total / count;
@@ -224,15 +222,15 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 	/*
 	 * Performs a depth charge by searching for a terminal state
 	 */
-	private int depthcharge(Role role, Node curr_node, long timeout, StateMachine m) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private int depthcharge(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
 		MachineState curr_state = curr_node.currentState;
 		while (!propNetMachine.isTerminal(curr_state)) {
 			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
-			List<List<Move>> moves = m.getLegalJointMoves(curr_state);
-			curr_state = m.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
+			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_state);
+			curr_state = propNetMachine.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
 		}
-		return m.findReward(role,  curr_state);
+		return propNetMachine.getGoal(curr_state, role);
 	}
 
 

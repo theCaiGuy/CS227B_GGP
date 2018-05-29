@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.ggp.base.util.gdl.grammar.Gdl;
@@ -58,6 +59,7 @@ public class MGJPropNetStateMachine extends StateMachine {
             }
             */
             ordering = getOrdering();
+            System.out.println(propNet.getSize());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -114,7 +116,11 @@ public class MGJPropNetStateMachine extends StateMachine {
 	    			propNet.getInputPropositions().containsKey(p.getName())) {
 	    			return p.getValue();
 	    		} else {
-	    			return propmarkp(p.getSingleInput());
+	    			try {
+	    				return propmarkp(p.getSingleInput());
+	    			} catch (Exception e) {
+	    				return p.getValue();
+	    			}
 	    		}
 	    	} else {
 	    		if (c instanceof And) {
@@ -122,7 +128,7 @@ public class MGJPropNetStateMachine extends StateMachine {
 	    		} else if (c instanceof Not) {
 	    			return propmarknegation(c);
 	    		} else if (c instanceof Or) {
-	    			return propmarkconjunction(c);
+	    			return propmarkdisjunction(c);
 	    		}
 	    	}
 	    	return false;
@@ -164,25 +170,26 @@ public class MGJPropNetStateMachine extends StateMachine {
 	    	return actions;
     }
 
-    private List<Proposition> propnext(List<Move> move, MachineState state) {
+    private Set<GdlSentence> propnext(List<Move> move, MachineState state) {
 	    	markActions(move);
 	    	markBases(state);
 	    	Map<GdlSentence, Proposition> bases = propNet.getBasePropositions();
-	    	List<Proposition> nexts = new ArrayList<Proposition>();
-	    	for (int i = 0; i < bases.size(); i++) {
-	    		if (propmarkp(bases.get(i).getSingleInput().getSingleInput())) {
-	    			nexts.add(bases.get(i));
+	    	Set<GdlSentence> nexts = new HashSet<GdlSentence>();
+	    	for (Entry <GdlSentence, Proposition> base_pair : bases.entrySet()) {
+//	    		if (propmarkp(bases.get(base))) {
+	    		if (propmarkp(base_pair.getValue().getSingleInput().getSingleInput())) {
+	    			nexts.add(base_pair.getKey());
 	    		}
 	    	}
 	    	return nexts;
     }
 
-    private GdlSentence propreward(Role role, MachineState state) {
+    private Proposition propreward(Role role, MachineState state) {
 	    	markBases(state);
 	    	Set<Proposition> rewards = propNet.getGoalPropositions().get(role);
 	    	for (Proposition r : rewards) {
 	    		if (propmarkp(r)) {
-	    			return r.getName();
+	    			return r;
 	    		}
 	    	}
 	    	return null;
@@ -198,8 +205,7 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
-        // TODO: Compute the goal for role in state.
-        return -1;
+        return getGoalValue(propreward(role, state));
     }
 
     /**
@@ -229,8 +235,12 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
-        // TODO: Compute legal moves.
-        return null;
+    		List<Move> legal_moves = new ArrayList<Move>();
+    		List<Proposition> legal_props = proplegals(role, state);
+    		for (Proposition prop : legal_props) {
+    			legal_moves.add(getMoveFromProposition(prop));
+    		}
+        return legal_moves;
     }
 
     /**
@@ -239,8 +249,8 @@ public class MGJPropNetStateMachine extends StateMachine {
     @Override
     public MachineState getNextState(MachineState state, List<Move> moves)
             throws TransitionDefinitionException {
-        // TODO: Compute the next state.
-        return null;
+    		Set<GdlSentence> nexts = propnext(moves, state);
+    		return new MachineState(nexts);
     }
 
     /**

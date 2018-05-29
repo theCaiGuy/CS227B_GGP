@@ -1,4 +1,4 @@
-package org.ggp.base.player.gamer.statemachine.assign7;
+package org.ggp.base.player.gamer.statemachine.assign8;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJPropnetStateMachineGamer extends SampleGamer
+public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -69,6 +69,9 @@ public final class MGJPropnetStateMachineGamer extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
+		System.out.println(propNetMachine.toString());
+		propNetMachine.pruneMultipleGames();
+		System.out.println(propNetMachine.toString());
 	}
 
 	@Override

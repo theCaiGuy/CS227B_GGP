@@ -1,4 +1,4 @@
-package org.ggp.base.player.gamer.statemachine.assign8;
+package org.ggp.base.player.gamer.statemachine.assign7;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -6,7 +6,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Queue;
 import java.util.Set;
 
 import org.ggp.base.util.gdl.grammar.Gdl;
@@ -31,7 +30,7 @@ import org.ggp.base.util.statemachine.implementation.prover.query.ProverQueryBui
 
 
 @SuppressWarnings("unused")
-public class MGJPropNetStateMachine extends StateMachine {
+public class MGJPropnetStateMachineGamer extends StateMachine {
     /** The underlying proposition network  */
     private PropNet propNet;
     /** The topological ordering of the propositions */
@@ -358,48 +357,4 @@ public class MGJPropNetStateMachine extends StateMachine {
         }
         return new MachineState(contents);
     }
-
-	public void pruneMultipleGames() {
-		Proposition terminalProp = propNet.getTerminalProposition();
-		Set<Component> toKeep = new HashSet<Component>();
-		Queue<Component> needToHandle = new LinkedList<Component>();
-		boolean gotInput = false;
-		needToHandle.add(terminalProp);
-		Map<Role,Set<Proposition>> legal = propNet.getLegalPropositions();
-		Map<GdlSentence,Proposition>  input = propNet.getInputPropositions();
-		Map<Role, Set<Proposition>> goals = propNet.getGoalPropositions();
-		for (GdlSentence s : input.keySet()) needToHandle.add(input.get(s));
-		for (Role role : goals.keySet()) {
-			Set<Proposition> props = goals.get(role);
-			for (Proposition prop : props) needToHandle.add(prop);
-		}
-		for (Role role : legal.keySet()) {
-			Set<Proposition> props = goals.get(role);
-			for (Proposition prop : props) needToHandle.add(prop);
-		}
-		Set<Component> toRemove = new HashSet<Component>();
-		while (needToHandle.peek() != null) {
-			Component currComponent = needToHandle.poll();
-			toKeep.add(currComponent);
-			if (propNet.getInitProposition().equals(currComponent)) gotInput = true;
-			Set<Component> sources = currComponent.getInputs();
-			Set<Component> allComponents = propNet.getComponents();
-			for (Component component : allComponents) {
-				if (component.getInputs().contains(currComponent))  {
-					if (!toKeep.contains(component)) needToHandle.add(component);
-				}
-			}
-			for (Component currComp : sources) {
-				if (!toKeep.contains(currComp)) needToHandle.add(currComp);
-			}
-		}
-		if (!gotInput) throw new RuntimeException("Problem with factoring game!!! Init position deleted!");
-		Set<Component> allComponents = propNet.getComponents();
-		for (Component component : allComponents) {
-			if (!toKeep.contains(component))  toRemove.add(component);
-		}
-		for (Component toRemoveComp : toRemove) propNet.removeComponent(toRemoveComp);
-		System.out.println("FACTORED PROPNET SIZE:");
-		System.out.println(propNet.getSize());
-	}
 }

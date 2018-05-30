@@ -21,7 +21,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
+public final class MGJPropnetStateMachineSelectiveGamesGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -70,7 +70,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
-		propNetMachine.pruneMultipleGames();
+		propNetMachine.pruneSelectiveGames();
 	}
 
 	@Override

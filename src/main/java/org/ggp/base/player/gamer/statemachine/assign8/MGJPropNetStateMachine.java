@@ -16,6 +16,7 @@ import org.ggp.base.util.gdl.grammar.GdlSentence;
 import org.ggp.base.util.propnet.architecture.Component;
 import org.ggp.base.util.propnet.architecture.PropNet;
 import org.ggp.base.util.propnet.architecture.components.And;
+import org.ggp.base.util.propnet.architecture.components.Constant;
 import org.ggp.base.util.propnet.architecture.components.Not;
 import org.ggp.base.util.propnet.architecture.components.Or;
 import org.ggp.base.util.propnet.architecture.components.Proposition;
@@ -60,7 +61,7 @@ public class MGJPropNetStateMachine extends StateMachine {
             }
             */
             ordering = getOrdering();
-            System.out.println(propNet.getSize());
+            System.out.println("PropNet Size: " + propNet.getSize());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -110,6 +111,7 @@ public class MGJPropNetStateMachine extends StateMachine {
 
     private boolean propmarkp(Component c) {
 	    	// check proposition versus transition
+    		if (c instanceof Constant) return c.getValue();
 	    	if (c instanceof Proposition) {
 	    		Proposition p = (Proposition) c;
 	    		// input/base props return mark, otherwise return view prop source
@@ -360,46 +362,31 @@ public class MGJPropNetStateMachine extends StateMachine {
     }
 
 	public void pruneMultipleGames() {
-		Proposition terminalProp = propNet.getTerminalProposition();
 		Set<Component> toKeep = new HashSet<Component>();
-		Queue<Component> needToHandle = new LinkedList<Component>();
-		boolean gotInput = false;
-		needToHandle.add(terminalProp);
-		Map<Role,Set<Proposition>> legal = propNet.getLegalPropositions();
-		Map<GdlSentence,Proposition>  input = propNet.getInputPropositions();
-		Map<Role, Set<Proposition>> goals = propNet.getGoalPropositions();
-		for (GdlSentence s : input.keySet()) needToHandle.add(input.get(s));
-		for (Role role : goals.keySet()) {
-			Set<Proposition> props = goals.get(role);
-			for (Proposition prop : props) needToHandle.add(prop);
+		Proposition terminal = propNet.getTerminalProposition();
+		Queue<Component> connected_nodes = new LinkedList<Component>();
+		connected_nodes.add(terminal);
+		for (Set<Proposition> goalset : propNet.getGoalPropositions().values()) {
+			connected_nodes.addAll(goalset);
 		}
-		for (Role role : legal.keySet()) {
-			Set<Proposition> props = goals.get(role);
-			for (Proposition prop : props) needToHandle.add(prop);
+		Map<Proposition, Proposition> legal_input_map = propNet.getLegalInputMap();
+		while (!connected_nodes.isEmpty()) {
+			Component curr_component = connected_nodes.poll();
+			toKeep.add(curr_component);
+			if (legal_input_map.containsKey(curr_component)) {
+				Proposition legal_prop = legal_input_map.get(curr_component);
+				if (!toKeep.contains(legal_prop)) connected_nodes.add(legal_prop);
+			}
+			for (Component input : curr_component.getInputs()) {
+				if (!toKeep.contains(input)) connected_nodes.add(input);
+			}
 		}
 		Set<Component> toRemove = new HashSet<Component>();
-		while (needToHandle.peek() != null) {
-			Component currComponent = needToHandle.poll();
-			toKeep.add(currComponent);
-			if (propNet.getInitProposition().equals(currComponent)) gotInput = true;
-			Set<Component> sources = currComponent.getInputs();
-			Set<Component> allComponents = propNet.getComponents();
-			for (Component component : allComponents) {
-				if (component.getInputs().contains(currComponent))  {
-					if (!toKeep.contains(component)) needToHandle.add(component);
-				}
-			}
-			for (Component currComp : sources) {
-				if (!toKeep.contains(currComp)) needToHandle.add(currComp);
-			}
-		}
-		if (!gotInput) throw new RuntimeException("Problem with factoring game!!! Init position deleted!");
-		Set<Component> allComponents = propNet.getComponents();
-		for (Component component : allComponents) {
+		for (Component component : propNet.getComponents()) {
 			if (!toKeep.contains(component))  toRemove.add(component);
 		}
 		for (Component toRemoveComp : toRemove) propNet.removeComponent(toRemoveComp);
-		System.out.println("FACTORED PROPNET SIZE:");
-		System.out.println(propNet.getSize());
+		System.out.println("Factored propnet legals: " + propNet.getLegalInputMap().size());
+		System.out.println("FACTORED PROPNET SIZE: " + propNet.getSize());
 	}
 }

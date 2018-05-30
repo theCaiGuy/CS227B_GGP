@@ -36,6 +36,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 	private int num_depth_charges = 0;
 	private double est_utility = 0;
 	private MGJPropNetStateMachine propNetMachine;
+	private int depth_limit = 5;
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -69,9 +70,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
-		System.out.println(propNetMachine.toString());
 		propNetMachine.pruneMultipleGames();
-		System.out.println(propNetMachine.toString());
 	}
 
 	@Override
@@ -88,6 +87,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 
 		// get the list of all possible moves
 		List<Move> moves = propNetMachine.getLegalMoves(currentState, role);
+		System.out.println("Initial legal moves: " + moves.size());
 
 		// if noop or only one possible move return immediately
 		if (moves.size() == 1) return moves.get(0);
@@ -119,7 +119,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 	 */
 	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
-			Node selNode = select(root);
+			Node selNode = select(root, 0);
 			int score = 0;
 			if (propNetMachine.isTerminal(selNode.currentState)) {
 				score = propNetMachine.getGoal(selNode.currentState, role);
@@ -149,8 +149,8 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 		return bestMove.move.get(roleIdx);
 	}
 
-	private Node select(Node node) {
-		if (propNetMachine.isTerminal(node.currentState)) {
+	private Node select(Node node, int depth) throws MoveDefinitionException {
+		if (propNetMachine.isTerminal(node.currentState) || depth == depth_limit) {
 			return node;
 		}
 		if (node.visits == 0) {
@@ -168,7 +168,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 					result = child;
 				}
 			}
-			return select(result);
+			return select(result, depth + 1);
 		}
 	}
 
@@ -178,6 +178,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
 		List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
+		System.out.println("Expansion legal moves: " + actions.size());
 		for (Move action : actions) {
 			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
@@ -231,6 +232,7 @@ public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
 		while (!propNetMachine.isTerminal(curr_state)) {
 			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_state);
+			System.out.println("Legal moves: " + moves.size());
 			curr_state = propNetMachine.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
 		}
 		return propNetMachine.getGoal(curr_state, role);

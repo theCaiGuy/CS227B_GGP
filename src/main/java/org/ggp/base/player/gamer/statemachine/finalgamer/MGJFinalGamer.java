@@ -21,7 +21,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJPropnetStateMachineMultipleGamesGamer extends SampleGamer
+public final class MGJFinalGamer extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried

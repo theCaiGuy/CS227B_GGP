@@ -335,6 +335,7 @@ public class MGJPropNetStateMachine extends StateMachine {
      */
     private int getGoalValue(Proposition goalProposition)
     {
+    		if (goalProposition == null) return 0;
         GdlRelation relation = (GdlRelation) goalProposition.getName();
         GdlConstant constant = (GdlConstant) relation.get(1);
         return Integer.parseInt(constant.toString());
@@ -423,6 +424,11 @@ public class MGJPropNetStateMachine extends StateMachine {
 				}
 			}
 			if (!toKeep.contains(propNet.getInitProposition())) continue;
+			for (Set<Proposition> goalset : propNet.getGoalPropositions().values()) {
+				for (Proposition goal: goalset) {
+					if (!toKeep.contains(goal)) continue;
+				}
+			}
 			break;
 		}
 		Set<Component> toRemove = new HashSet<Component>();

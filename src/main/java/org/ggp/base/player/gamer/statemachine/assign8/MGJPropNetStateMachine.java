@@ -390,32 +390,6 @@ public class MGJPropNetStateMachine extends StateMachine {
 	}
 
 	public void pruneSelectiveGames() {
-//		Set<Component> init_outputs = init_prop.getSingleOutput().getOutputs();
-//		Queue<Component> connected_nodes = new LinkedList<Component>();
-//		Set<Component> toKeep = new HashSet<Component>();
-//		connected_nodes.add(init_prop);
-//		connected_nodes.add(init_prop.getSingleOutput());
-//		for (Component init_output : init_outputs) {
-//			connected_nodes.add(init_output);
-//			Map<Proposition, Proposition> legal_input_map = propNet.getLegalInputMap();
-//			while (!connected_nodes.isEmpty()) {
-//				Component curr_component = connected_nodes.poll();
-//				toKeep.add(curr_component);
-//				if (legal_input_map.containsKey(curr_component)) {
-//					Proposition legal_prop = legal_input_map.get(curr_component);
-//					if (!toKeep.contains(legal_prop)) connected_nodes.add(legal_prop);
-//				}
-//				for (Component output : curr_component.getOutputs()) {
-//					if (!toKeep.contains(output)) connected_nodes.add(output);
-//				}
-//			}
-//			break;
-//		}
-//		Set<Component> toRemove = new HashSet<Component>();
-//		for (Component component : propNet.getComponents()) {
-//			if (!toKeep.contains(component))  toRemove.add(component);
-//		}
-//		for (Component toRemoveComp : toRemove) propNet.removeComponent(toRemoveComp);
 		Proposition terminal = propNet.getTerminalProposition();
 		Set<Component> terminal_inputs = terminal.getSingleInput().getInputs();
 		System.out.println("Terminal inputs: " + terminal_inputs.size());
@@ -438,24 +412,16 @@ public class MGJPropNetStateMachine extends StateMachine {
 					if (!toKeep.contains(input)) connected_nodes.add(input);
 				}
 			}
-//			for (Set<Proposition> goalset : propNet.getGoalPropositions().values()) {
-//				for (Proposition goal: goalset) {
-//					for (Component input : goal.getSingleInput().getInputs()) {
-//						if (toKeep.contains(input)) connected_nodes.add(goal);
-//					}
-//				}
-//			}
-//			while (!connected_nodes.isEmpty()) {
-//				Component curr_component = connected_nodes.poll();
-//				toKeep.add(curr_component);
-//				if (legal_input_map.containsKey(curr_component)) {
-//					Proposition legal_prop = legal_input_map.get(curr_component);
-//					if (!toKeep.contains(legal_prop)) connected_nodes.add(legal_prop);
-//				}
-//				for (Component input : curr_component.getInputs()) {
-//					if (!toKeep.contains(input)) connected_nodes.add(input);
-//				}
-//			}
+			for (Set<Proposition> goalset : propNet.getGoalPropositions().values()) {
+				for (Proposition goal: goalset) {
+					for (Component input : goal.getSingleInput().getInputs()) {
+						if (toKeep.contains(input)) {
+							toKeep.add(goal);
+							toKeep.add(goal.getSingleInput());
+						}
+					}
+				}
+			}
 			if (!toKeep.contains(propNet.getInitProposition())) continue;
 			break;
 		}
@@ -464,6 +430,8 @@ public class MGJPropNetStateMachine extends StateMachine {
 			if (!toKeep.contains(component))  toRemove.add(component);
 		}
 		for (Component toRemoveComp : toRemove) propNet.removeComponent(toRemoveComp);
+
+		System.out.println(propNet.getGoalPropositions().values().size());
 
 		System.out.println("FACTORED PROPNET SIZE: " + propNet.getSize());
 	}

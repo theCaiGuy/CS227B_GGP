@@ -138,7 +138,7 @@ public final class MGJFinalGamer extends SampleGamer
 		for (Node child : root.children) {
 			if (propNetMachine.isTerminal(child.currentState)) {
 				if (propNetMachine.getGoal(child.currentState, role) == 100) {
-					est_utility = child.utility;
+					est_utility = child.utility/child.visits;
 					return child.move.get(roleIdx);
 				}
 			}
@@ -147,12 +147,12 @@ public final class MGJFinalGamer extends SampleGamer
 				bestMove = child;
 			}
 		}
-		est_utility = bestMove.utility;
+		est_utility = bestMove.utility/bestMove.visits;
 		return bestMove.move.get(roleIdx);
 	}
 
 	private Node select(Node node, int depth) throws MoveDefinitionException {
-		if (propNetMachine.isTerminal(node.currentState) || depth == depth_limit) {
+		if (propNetMachine.isTerminal(node.currentState)) {
 			return node;
 		}
 		if (node.visits == 0) {

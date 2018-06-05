@@ -182,13 +182,13 @@ public final class MGJFinalGamer extends SampleGamer
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
 		List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
 		for (Move action : actions) {
-			Node new_player_node = new Node(node, action, node.currentState, false, true);
-			node.children.add(new_player_node);
+//			Node new_player_node = new Node(node, action, node.currentState, false, true);
+//			node.children.add(new_player_node);
 			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
 				MachineState newState = propNetMachine.findNext(jointActions, node.currentState);
 				Node new_opponent_node = new Node(node, action, newState, false, false);
-				new_player_node.children.add(new_opponent_node);
+				node.children.add(new_opponent_node);
 			}
 		}
 	}

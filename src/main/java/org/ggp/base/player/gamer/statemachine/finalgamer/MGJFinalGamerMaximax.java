@@ -48,7 +48,7 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		MachineState currentState = null;
 		// Is the root of the tree or not
 		boolean isRoot = false;
-		boolean player_move = false;
+		boolean isPlayerMove = false;
 
 		//CAN BE CHANGED
 		// Utility of the move
@@ -57,12 +57,12 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		// Number of visits for
 		public double visits = 0.0;
 
-		public Node(Node parent, Move move, MachineState currentState, boolean isRoot, boolean player_move) {
+		public Node(Node parent, Move move, MachineState currentState, boolean isRoot, boolean isPlayerMove) {
 			this.parent = parent;
 			this.move = move;
 			this.currentState = currentState;
 			this.isRoot = isRoot;
-			this.player_move = player_move;
+			this.isPlayerMove = isPlayerMove;
 		}
 	}
 
@@ -72,10 +72,10 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
-		// For single-player games, factor propnet for multiple games
-		if (propNetMachine.findRoles().size() == 1) {
-			propNetMachine.pruneMultipleGames();
-		}
+//		// For single-player games, factor propnet for multiple games
+//		if (propNetMachine.findRoles().size() == 1) {
+//			propNetMachine.pruneMultipleGames();
+//		}
 	}
 
 	@Override
@@ -124,14 +124,25 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 	private Move bestMove(Node root, Role role, long start, long timeout, int roleIdx) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		while (timeout - System.currentTimeMillis() >= time_lim) {
 			Node selNode = select(root);
-			int score = 0;
+			double scores[] = {0, 0};
 			if (propNetMachine.isTerminal(selNode.currentState)) {
-				score = propNetMachine.getGoal(selNode.currentState, role);
+				scores[0] = propNetMachine.getGoal(selNode.currentState, role);
+				for (Role opponent : propNetMachine.getRoles()) {
+					if (opponent == role) continue;
+					int opponent_goal = propNetMachine.getGoal(selNode.currentState, opponent);
+					if (opponent_goal > scores[1]) scores[1] = opponent_goal;
+				}
 			} else {
 				expand(selNode, role);
-				score = montecarlo(role, selNode, timeout);
+//				if (selNode.isRoot) continue;
+//				if (selNode.isPlayerMove) {
+//					score = montecarlo(role, selNode, timeout);
+//				} else {
+//					opponent_score = montecarlo(role, selNode, timeout);
+//				}
+				scores = montecarlo(role, selNode, timeout);
 			}
-			backpropagate(selNode, score);
+			backpropagate(selNode, scores[0], scores[1]);
 		}
 
 		// Parse through moves, find one with highest amount of utility, select it
@@ -159,14 +170,30 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		}
 		if (node.visits == 0) {
 			return node;
+		}
+		if (node.isPlayerMove && propNetMachine.getRoles().size() > 1) {
+			if (node.visits == 0) {
+				return node;
+			}
+			double max_opponent_score = 0.0;
+			Node result = node.children.get(0);
+			for (Node child : node.children) {
+				if (child.visits == 0) return child;
+				int child_score = selectfn(child.opponent_utility, child.visits, node.visits);
+				if (child_score > max_opponent_score) {
+					max_opponent_score = child_score;
+					result = child;
+				}
+			}
+			return select(result);
 		} else {
 			int score = 0;
-			Node result = node;
+			Node result = node.children.get(0);
 			for (Node child : node.children) {
 				if (child.visits == 0) {
 					return child;
 				}
-				int child_score = selectfn(child);
+				int child_score = selectfn(child.utility, child.visits, child.parent.visits);
 				if (child_score > score) {
 					score = child_score;
 					result = child;
@@ -176,36 +203,36 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		}
 	}
 
-	private int selectfn(Node node) {
-		return (int) (node.utility / node.visits + Math.sqrt(2 * Math.log(node.parent.visits) / node.visits));
+	private int selectfn(double utility, double visits, double parent_visits) {
+		return (int) (utility / visits + Math.sqrt(2 * Math.log(parent_visits) / visits));
 	}
 
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
-		List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
-		for (Move action : actions) {
-			Node new_player_node = new Node(node, action, node.currentState, false, true);
-			node.children.add(new_player_node);
-			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, action);
+		if (node.isPlayerMove && propNetMachine.getRoles().size() > 1) {
+			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, node.move);
 			for (List<Move> jointActions : allJointActions) {
 				MachineState newState = propNetMachine.findNext(jointActions, node.currentState);
-				Node new_opponent_node = new Node(node, action, newState, false, false);
-				new_player_node.children.add(new_opponent_node);
+				Node new_opponent_node = new Node(node, null, newState, false, false);
+				node.children.add(new_opponent_node);
+			}
+		} else {
+			List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
+			for (Move action : actions) {
+				Node player_node = new Node(node, action, node.currentState, false, true);
+				if (propNetMachine.getRoles().size() == 1) {
+					List<Move> moves = new ArrayList<Move>();
+					moves.add(action);
+					player_node.currentState = propNetMachine.findNext(moves, node.currentState);
+				}
+				node.children.add(player_node);
 			}
 		}
 	}
 
-//	private void backpropagate(Node node, int score) {
-//		node.visits++;
-//		node.utility = node.utility + score;
-//		if (node.parent != null) {
-//			backpropagate(node.parent, score);
-//		}
-//	}
-
 	/*
 	 * Backpropogates a found score to parent nodes until the root is reached
 	 */
-	private void backpropagate(Node node, int score) {
+	private void backpropagate(Node node, double score, double opponent_score) {
 		Node curr_node = node;
 		node.visits += 1;
 		node.utility = node.utility + score;
@@ -213,50 +240,56 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 			curr_node = curr_node.parent;
 			curr_node.visits += 1;
 			curr_node.utility += score;
+			curr_node.opponent_utility += opponent_score;
 		}
 	}
 
 	/*
 	 * Manages depth charges for a monte carlo search
 	 */
-	private int montecarlo(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
-		int total = 0;
-		if (curr_node.player_move) {
-			for (int i = 0; i < count; i++) {
-				total = total + depthcharge(role, curr_node, timeout);
-				num_depth_charges += 1;
-			}
-		} else {
-			int curr_total = 0;
-			for (Role curr_role : propNetMachine.getRoles()) {
-				if (curr_role == role) continue;
-				for (int i = 0; i < count; i++) {
-					curr_total = curr_total + depthcharge(curr_role, curr_node, timeout);
-					num_depth_charges += 1;
-				}
-				if (curr_total > total) total = curr_total;
-			}
+	private double[] montecarlo(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		double averages[] = {0,0};
+		for (int i = 0; i < count; i++) {
+			double scores[] = depthcharge(role, curr_node, timeout);
+			num_depth_charges += 1;
+			averages[0] += scores[0];
+			averages[1] += scores[1];
 		}
-
-		return total / count;
+		averages[0] = averages[0] / count;
+		averages[1] = averages[1] / count;
+		return averages;
 	}
 
 	/*
 	 * Performs a depth charge by searching for a terminal state
 	 */
-	private int depthcharge(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	private double[] depthcharge(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
 		MachineState curr_state = curr_node.currentState;
-		if (curr_node.player_move) {
+		if (curr_node.isPlayerMove) {
 			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_node.currentState, role, curr_node.move);
 			curr_state = propNetMachine.getNextState(curr_node.currentState, moves.get(random.nextInt(moves.size())));
 		}
 		while (!propNetMachine.isTerminal(curr_state)) {
-			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
+			if (timeout - System.currentTimeMillis() < absolute_lim) {
+				double scores[] = {0, 0};
+				return scores;
+			}
 			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_state);
 			curr_state = propNetMachine.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
 		}
-		return propNetMachine.getGoal(curr_state, role);
+		double scores[] = {0, 0};
+		int max_opponent_goal = 0;
+		for (Role opponent : propNetMachine.getRoles()) {
+			if (opponent == role) {
+				scores[0] = propNetMachine.getGoal(curr_state, role);
+			} else {
+				int opponent_goal = propNetMachine.getGoal(curr_state, opponent);
+				if (opponent_goal > max_opponent_goal) max_opponent_goal = opponent_goal;
+			}
+		}
+		scores[1] = max_opponent_goal;
+		return scores;
 	}
 
 

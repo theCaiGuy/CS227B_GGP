@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.assign7.MGJPropNetStateMachine;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.gdl.grammar.Gdl;
 import org.ggp.base.util.statemachine.MachineState;
@@ -39,7 +40,7 @@ public final class MGJFinalGamer extends SampleGamer
 
 	// Class to represent Node in search tree
 	public class Node {
-		Move move = null;
+		List<Move> move = null;
 		// Parent node of the current node
 		public Node parent = null;
 		// Array of all of the child nodes of the current node
@@ -48,7 +49,6 @@ public final class MGJFinalGamer extends SampleGamer
 		MachineState currentState = null;
 		// Is the root of the tree or not
 		boolean isRoot = false;
-		boolean player_move = false;
 
 		//CAN BE CHANGED
 		// Utility of the move
@@ -56,12 +56,11 @@ public final class MGJFinalGamer extends SampleGamer
 		// Number of visits for
 		public double visits = 0.0;
 
-		public Node(Node parent, Move move, MachineState currentState, boolean isRoot, boolean player_move) {
+		public Node(Node parent, List<Move> move, MachineState currentState, boolean isRoot) {
 			this.parent = parent;
 			this.move = move;
 			this.currentState = currentState;
 			this.isRoot = isRoot;
-			this.player_move = player_move;
 		}
 	}
 
@@ -71,10 +70,6 @@ public final class MGJFinalGamer extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
-		// For single-player games, factor propnet for multiple games
-		if (propNetMachine.findRoles().size() == 1) {
-			propNetMachine.pruneMultipleGames();
-		}
 	}
 
 	@Override
@@ -98,7 +93,7 @@ public final class MGJFinalGamer extends SampleGamer
 		num_depth_charges = 0;
 		est_utility = 0;
 
-		Node root = new Node(null, null, getCurrentState(), true, false);
+		Node root = new Node(null, null, getCurrentState(), true);
 		// Use Monte Carlo Tree Search to determine the best possible next move
 		Move selection = bestMove(root, role, start, timeout, roleIdx);
 
@@ -139,8 +134,8 @@ public final class MGJFinalGamer extends SampleGamer
 		for (Node child : root.children) {
 			if (propNetMachine.isTerminal(child.currentState)) {
 				if (propNetMachine.getGoal(child.currentState, role) == 100) {
-					est_utility = child.utility/child.visits;
-					return child.move;
+					est_utility = child.utility / child.visits;
+					return child.move.get(roleIdx);
 				}
 			}
 			if (child.utility >= bestUtility) {
@@ -148,11 +143,11 @@ public final class MGJFinalGamer extends SampleGamer
 				bestMove = child;
 			}
 		}
-		est_utility = bestMove.utility/bestMove.visits;
-		return bestMove.move;
+		est_utility = bestMove.utility / bestMove.visits;
+		return bestMove.move.get(roleIdx);
 	}
 
-	private Node select(Node node) throws MoveDefinitionException {
+	private Node select(Node node) {
 		if (propNetMachine.isTerminal(node.currentState)) {
 			return node;
 		}
@@ -182,13 +177,11 @@ public final class MGJFinalGamer extends SampleGamer
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
 		List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
 		for (Move action : actions) {
-//			Node new_player_node = new Node(node, action, node.currentState, false, true);
-//			node.children.add(new_player_node);
 			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, action);
 			for (List<Move> jointActions : allJointActions) {
 				MachineState newState = propNetMachine.findNext(jointActions, node.currentState);
-				Node new_opponent_node = new Node(node, action, newState, false, false);
-				node.children.add(new_opponent_node);
+				Node newnode = new Node(node, jointActions, newState, false);
+				node.children.add(newnode);
 			}
 		}
 	}
@@ -240,6 +233,7 @@ public final class MGJFinalGamer extends SampleGamer
 		}
 		return propNetMachine.getGoal(curr_state, role);
 	}
+
 
 
 }

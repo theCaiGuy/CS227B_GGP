@@ -75,10 +75,6 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		List<Gdl> rules = getMatch().getGame().getRules();
 		propNetMachine = new MGJPropNetStateMachine();
 		propNetMachine.initialize(rules);
-//		// For single-player games, factor propnet for multiple games
-//		if (propNetMachine.findRoles().size() == 1) {
-//			propNetMachine.pruneMultipleGames();
-//		}
 	}
 
 	@Override
@@ -251,8 +247,8 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		}
 		averages[0] = averages[0] / count;
 		averages[1] = averages[1] / count;
-		System.out.println("Average player depthcharge: " + averages[0]);
-		System.out.println("Average opponent depthcharge: " + averages[1]);
+//		System.out.println("Average player depthcharge: " + averages[0]);
+//		System.out.println("Average opponent depthcharge: " + averages[1]);
 		return averages;
 	}
 

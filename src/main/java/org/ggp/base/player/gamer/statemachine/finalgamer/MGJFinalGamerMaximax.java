@@ -35,7 +35,10 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 	private int count = 5; //num depth charges
 	private int num_depth_charges = 0;
 	private double est_utility = 0;
+	private double opponent_est_utility = 0;
 	private MGJPropNetStateMachine propNetMachine;
+	private List<Role> roles;
+	private int roleIdx;
 
 	// Class to represent Node in search tree
 	public class Node {
@@ -86,9 +89,12 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 
 		// vars for role and state
 		Role role = getRole();
-		List<Role> roles = propNetMachine.findRoles();
-		int roleIdx = roles.indexOf(role);
+		roles = propNetMachine.findRoles();
+		roleIdx = roles.indexOf(role);
 		MachineState currentState = getCurrentState();
+
+		System.out.println(roles);
+		System.out.println(roleIdx);
 
 		// get the list of all possible moves
 		List<Move> moves = propNetMachine.getLegalMoves(currentState, role);
@@ -98,12 +104,14 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 
 		num_depth_charges = 0;
 		est_utility = 0;
+		opponent_est_utility = 0;
 
 		Node root = new Node(null, null, getCurrentState(), true, false);
 		// Use Monte Carlo Tree Search to determine the best possible next move
 		Move selection = bestMove(root, role, start, timeout, roleIdx);
 
 		System.out.println("Estimated utility: " + est_utility);
+		System.out.println("Estimated opponent utility: " + opponent_est_utility);
 		System.out.println("Number of depth charges: " + num_depth_charges);
 
 		/*
@@ -127,19 +135,13 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 			double scores[] = {0, 0};
 			if (propNetMachine.isTerminal(selNode.currentState)) {
 				scores[0] = propNetMachine.getGoal(selNode.currentState, role);
-				for (Role opponent : propNetMachine.getRoles()) {
-					if (opponent == role) continue;
-					int opponent_goal = propNetMachine.getGoal(selNode.currentState, opponent);
+				for (int i = 0; i < roles.size(); i++) {
+					if (i == roleIdx) continue;
+					int opponent_goal = propNetMachine.getGoal(selNode.currentState, roles.get(i));
 					if (opponent_goal > scores[1]) scores[1] = opponent_goal;
 				}
 			} else {
 				expand(selNode, role);
-//				if (selNode.isRoot) continue;
-//				if (selNode.isPlayerMove) {
-//					score = montecarlo(role, selNode, timeout);
-//				} else {
-//					opponent_score = montecarlo(role, selNode, timeout);
-//				}
 				scores = montecarlo(role, selNode, timeout);
 			}
 			backpropagate(selNode, scores[0], scores[1]);
@@ -149,18 +151,13 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		Node bestMove = root.children.get(0);
 		double bestUtility =  root.children.get(0).utility;
 		for (Node child : root.children) {
-			if (propNetMachine.isTerminal(child.currentState)) {
-				if (propNetMachine.getGoal(child.currentState, role) == 100) {
-					est_utility = child.utility/child.visits;
-					return child.move;
-				}
-			}
 			if (child.utility >= bestUtility) {
 				bestUtility = child.utility;
 				bestMove = child;
 			}
 		}
 		est_utility = bestMove.utility/bestMove.visits;
+		opponent_est_utility = bestMove.opponent_utility/bestMove.visits;
 		return bestMove.move;
 	}
 
@@ -171,15 +168,12 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		if (node.visits == 0) {
 			return node;
 		}
-		if (node.isPlayerMove && propNetMachine.getRoles().size() > 1) {
-			if (node.visits == 0) {
-				return node;
-			}
+		if (node.isPlayerMove && roles.size() > 1) {
 			double max_opponent_score = 0.0;
 			Node result = node.children.get(0);
 			for (Node child : node.children) {
 				if (child.visits == 0) return child;
-				int child_score = selectfn(child.opponent_utility, child.visits, node.visits);
+				int child_score = selectfn(child.opponent_utility, child.visits, child.parent.visits);
 				if (child_score > max_opponent_score) {
 					max_opponent_score = child_score;
 					result = child;
@@ -208,7 +202,7 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 	}
 
 	private void expand(Node node, Role role) throws MoveDefinitionException, TransitionDefinitionException {
-		if (node.isPlayerMove && propNetMachine.getRoles().size() > 1) {
+		if (node.isPlayerMove && roles.size() > 1) {
 			List<List<Move>> allJointActions = propNetMachine.getLegalJointMoves(node.currentState, role, node.move);
 			for (List<Move> jointActions : allJointActions) {
 				MachineState newState = propNetMachine.findNext(jointActions, node.currentState);
@@ -219,7 +213,7 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 			List<Move> actions = propNetMachine.getLegalMoves(node.currentState, role);
 			for (Move action : actions) {
 				Node player_node = new Node(node, action, node.currentState, false, true);
-				if (propNetMachine.getRoles().size() == 1) {
+				if (propNetMachine.findRoles().size() == 1) {
 					List<Move> moves = new ArrayList<Move>();
 					moves.add(action);
 					player_node.currentState = propNetMachine.findNext(moves, node.currentState);
@@ -257,6 +251,8 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		}
 		averages[0] = averages[0] / count;
 		averages[1] = averages[1] / count;
+		System.out.println("Average player depthcharge: " + averages[0]);
+		System.out.println("Average opponent depthcharge: " + averages[1]);
 		return averages;
 	}
 
@@ -266,7 +262,7 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 	private double[] depthcharge(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
 		MachineState curr_state = curr_node.currentState;
-		if (curr_node.isPlayerMove) {
+		if (curr_node.isPlayerMove && roles.size() > 1) {
 			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_node.currentState, role, curr_node.move);
 			curr_state = propNetMachine.getNextState(curr_node.currentState, moves.get(random.nextInt(moves.size())));
 		}
@@ -279,12 +275,17 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 			curr_state = propNetMachine.getNextState(curr_state, moves.get(random.nextInt(moves.size())));
 		}
 		double scores[] = {0, 0};
+		if (roles.size() == 1) {
+			scores[0] = propNetMachine.getGoal(curr_state, role);
+			return scores;
+		}
 		int max_opponent_goal = 0;
-		for (Role opponent : propNetMachine.getRoles()) {
-			if (opponent == role) {
-				scores[0] = propNetMachine.getGoal(curr_state, role);
+		scores[0] = propNetMachine.getGoal(curr_state, role);
+		for (int i = 0; i < roles.size(); i++) {
+			if (i == roleIdx) {
+				continue;
 			} else {
-				int opponent_goal = propNetMachine.getGoal(curr_state, opponent);
+				int opponent_goal = propNetMachine.getGoal(curr_state, roles.get(i));
 				if (opponent_goal > max_opponent_goal) max_opponent_goal = opponent_goal;
 			}
 		}

@@ -21,7 +21,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * to simulate random game play in order to estimate the likelihood of any
  * particular move leading to a victory
  */
-public final class MGJFinalGamer extends SampleGamer
+public final class MGJFinalGamerMaximax extends SampleGamer
 {
 	/*
 	 * This function is called whenever the gamer is queried
@@ -53,6 +53,7 @@ public final class MGJFinalGamer extends SampleGamer
 		//CAN BE CHANGED
 		// Utility of the move
 		public double utility = 0.0;
+		public double opponent_utility = 0.0;
 		// Number of visits for
 		public double visits = 0.0;
 
@@ -220,10 +221,23 @@ public final class MGJFinalGamer extends SampleGamer
 	 */
 	private int montecarlo(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		int total = 0;
-		for (int i = 0; i < count; i++) {
-			total = total + depthcharge(role, curr_node, timeout);
-			num_depth_charges += 1;
+		if (curr_node.player_move) {
+			for (int i = 0; i < count; i++) {
+				total = total + depthcharge(role, curr_node, timeout);
+				num_depth_charges += 1;
+			}
+		} else {
+			int curr_total = 0;
+			for (Role curr_role : propNetMachine.getRoles()) {
+				if (curr_role == role) continue;
+				for (int i = 0; i < count; i++) {
+					curr_total = curr_total + depthcharge(curr_role, curr_node, timeout);
+					num_depth_charges += 1;
+				}
+				if (curr_total > total) total = curr_total;
+			}
 		}
+
 		return total / count;
 	}
 
@@ -233,6 +247,10 @@ public final class MGJFinalGamer extends SampleGamer
 	private int depthcharge(Role role, Node curr_node, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Random random = new Random();
 		MachineState curr_state = curr_node.currentState;
+		if (curr_node.player_move) {
+			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_node.currentState, role, curr_node.move);
+			curr_state = propNetMachine.getNextState(curr_node.currentState, moves.get(random.nextInt(moves.size())));
+		}
 		while (!propNetMachine.isTerminal(curr_state)) {
 			if (timeout - System.currentTimeMillis() < absolute_lim) return 0;
 			List<List<Move>> moves = propNetMachine.getLegalJointMoves(curr_state);

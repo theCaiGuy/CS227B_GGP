@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Random;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
-import org.ggp.base.player.gamer.statemachine.assign7.MGJPropNetStateMachine;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.gdl.grammar.Gdl;
 import org.ggp.base.util.statemachine.MachineState;

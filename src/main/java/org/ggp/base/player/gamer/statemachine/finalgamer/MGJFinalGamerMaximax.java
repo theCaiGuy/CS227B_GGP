@@ -89,8 +89,8 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		roleIdx = roles.indexOf(role);
 		MachineState currentState = getCurrentState();
 
-		System.out.println(roles);
-		System.out.println(roleIdx);
+//		System.out.println(roles);
+//		System.out.println(roleIdx);
 
 		// get the list of all possible moves
 		List<Move> moves = propNetMachine.getLegalMoves(currentState, role);
@@ -109,6 +109,20 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		System.out.println("Estimated utility: " + est_utility);
 		System.out.println("Estimated opponent utility: " + opponent_est_utility);
 		System.out.println("Number of depth charges: " + num_depth_charges);
+
+		// Print child moves, utilities, visits
+		// Print joint moves, opponent utilites, visits
+		for (Node child : root.children) {
+			System.out.println("Child move: " + child.move);
+			System.out.println("Child utility: " + child.utility/child.visits);
+			System.out.println("Child opponent utility: " + child.opponent_utility/child.visits);
+			System.out.println("Child visits: " + child.visits);
+			for (Node grandchild : child.children) {
+				System.out.println("Grandchild utility: " + grandchild.utility/grandchild.visits);
+				System.out.println("Grandchild opponent utility: " + grandchild.opponent_utility/grandchild.visits);
+				System.out.println("Grandchild visits: " + grandchild.visits);
+			}
+		}
 
 		/*
 		 * get the final time after the move is chosen

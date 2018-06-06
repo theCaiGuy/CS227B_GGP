@@ -106,10 +106,6 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 		// Use Monte Carlo Tree Search to determine the best possible next move
 		Move selection = bestMove(root, role, start, timeout, roleIdx);
 
-		System.out.println("Estimated utility: " + est_utility);
-		System.out.println("Estimated opponent utility: " + opponent_est_utility);
-		System.out.println("Number of depth charges: " + num_depth_charges);
-
 		// Print child moves, utilities, visits
 		// Print joint moves, opponent utilites, visits
 		for (Node child : root.children) {
@@ -123,6 +119,10 @@ public final class MGJFinalGamerMaximax extends SampleGamer
 				System.out.println("Grandchild visits: " + grandchild.visits);
 			}
 		}
+
+		System.out.println("Estimated utility: " + est_utility);
+		System.out.println("Estimated opponent utility: " + opponent_est_utility);
+		System.out.println("Number of depth charges: " + num_depth_charges);
 
 		/*
 		 * get the final time after the move is chosen
